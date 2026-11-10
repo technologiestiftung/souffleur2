@@ -93,14 +93,16 @@ public static class CalendarEndpoints
 
     private static async Task<IResult> GetEventAsync(
         Guid id, SouffleurDbContext context, CancellationToken token) =>
-        await context.CalendarEvents.Include(e => e.Bookings).AsNoTracking()
+        // Mit Einteilung: Der Bogen zum Bearbeiten schickt sie vollstaendig
+        // zurueck. Fehlte sie hier, loeschte jedes Speichern alle Eingeteilten.
+        await context.CalendarEvents.Include(e => e.Bookings).Include(e => e.Participants).AsNoTracking()
             .FirstOrDefaultAsync(e => e.Id == id, token) is { } found
             ? TypedResults.Ok(EventResponse.From(found))
             : TypedResults.NotFound();
 
     private static async Task<IResult> GetSeriesAsync(
         Guid id, SouffleurDbContext context, CancellationToken token) =>
-        await context.EventSeries.Include(s => s.Bookings).AsNoTracking()
+        await context.EventSeries.Include(s => s.Bookings).Include(s => s.Participants).AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == id, token) is { } found
             ? TypedResults.Ok(SeriesResponse.From(found))
             : TypedResults.NotFound();

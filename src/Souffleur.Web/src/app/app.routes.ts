@@ -7,6 +7,12 @@ import { ShellComponent } from './shell/shell.component';
 export const routes: Routes = [
   { path: 'anmelden', component: LoginComponent, title: 'Anmelden · souffleur' },
   {
+    path: 'einladung',
+    title: 'Einladung · souffleur',
+    loadComponent: () =>
+      import('./features/login/einladung.component').then((m) => m.EinladungComponent),
+  },
+  {
     path: '',
     component: ShellComponent,
     canActivate: [authGuard],
@@ -115,6 +121,12 @@ export const routes: Routes = [
         title: 'Ordner der Ablage · souffleur',
         loadComponent: () =>
           import('./features/settings/ordner.component').then((m) => m.OrdnerComponent),
+      },
+      {
+        path: 'einstellungen/kontenplan',
+        title: 'Kontenplan · souffleur',
+        loadComponent: () =>
+          import('./features/settings/kontenplan.component').then((m) => m.KontenplanComponent),
       },
       {
         path: 'einstellungen/ressourcen',

@@ -134,6 +134,10 @@ builder.Services.AddSignalR();
 builder.Services.Replace(ServiceDescriptor.Scoped<INotificationPusher, SignalRNotificationPusher>());
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
+// Einladungslinks sind Ruecksetz-Tokens; ein Tag war zu knapp, wenn die Mail
+// am Freitag kommt und am Montag gelesen wird.
+builder.Services.Configure<DataProtectionTokenProviderOptions>(
+    options => options.TokenLifespan = InvitationEndpoints.Gueltigkeit);
 builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("datenbank");
 
 WebApplication app = builder.Build();
@@ -170,6 +174,7 @@ app.MapContactEndpoints();
 app.MapModuleEndpoints();
 app.MapPreferenceEndpoints();
 app.MapAccessEndpoints();
+app.MapInvitationEndpoints();
 app.MapDocumentEndpoints();
 app.MapFolderEndpoints();
 app.MapNotificationEndpoints();

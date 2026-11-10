@@ -1,0 +1,429 @@
+<div class="h-full overflow-auto p-5">
+  <div class="mb-4 max-w-4xl">
+    <h1 class="m-0 font-display text-lg font-semibold">Kontenplan</h1>
+    <p class="m-0 mt-1 max-w-prose text-sm text-content-muted">
+      Die Konten, auf die das Haus bucht, und die Kostenstellen. souffleur liefert keine Konten
+      mit — welche gelten, sagt das Steuerbüro. Meist kommt die Liste als Datei; einzelne Konten
+      lassen sich auch von Hand anlegen.
+      @if (chartLabel()) {
+        Kontenrahmen laut <a routerLink="/einstellungen/haus">Haus</a>: {{ chartLabel() }}.
+      }
+    </p>
+  </div>
+
+  @if (available() === false) {
+    <p class="max-w-prose text-sm text-content-muted">
+      Der Kontenplan gehört zum Modul Finanzen. Es ist abgeschaltet, oder es fehlt das Recht,
+      Buchungen zu sehen.
+    </p>
+  } @else if (available()) {
+    @if (problems().length > 0 && editing() === null) {
+      <souffleur-meldung class="mb-3 max-w-4xl" [texte]="problems()" />
+    }
+
+    @if (ergebnis(); as result) {
+      <div class="mb-3 max-w-4xl rounded-md bg-positive-wash px-3 py-2 text-sm" role="status">
+        {{ result.added }} {{ result.added === 1 ? 'Konto' : 'Konten' }} eingelesen.
+        @if (result.skippedBecauseTheyExist.length > 0) {
+          {{ result.skippedBecauseTheyExist.length }} gab es schon.
+        }
+        @if (result.rejected.length > 0) {
+          Nicht übernommen: {{ result.rejected.join(', ') }}.
+        }
+      </div>
+    }
+
+    <!-- Die Datei des Steuerbüros: erst zeigen, was passiert, dann einlesen. -->
+    @if (canBook()) {
+      <div class="mb-4 max-w-4xl rounded-lg border border-border bg-surface-raised p-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="text-sm">
+            <span class="font-medium">Liste vom Steuerbüro einlesen</span>
+            <span class="text-content-muted">
+              — CSV mit <code>Nummer;Name;Art;Steuerschlüssel</code>, Art und Schlüssel dürfen
+              fehlen.
+            </span>
+          </div>
+          <button
+            type="button"
+            (click)="datei.click()"
+            class="cursor-pointer rounded-md border border-border bg-transparent px-2.5 py-1 text-sm text-content"
+          >
+            Datei wählen …
+          </button>
+          <input
+            #datei
+            type="file"
+            accept=".csv,text/csv,text/plain"
+            class="hidden"
+            aria-label="Kontenliste wählen"
+            (change)="dateiGewaehlt($event)"
+          />
+        </div>
+
+        @if (vorschau(); as rows) {
+          <div class="mt-3 border-t border-border pt-3">
+            <p class="m-0 mb-2 text-sm">
+              <strong>{{ dateiname() }}</strong>: {{ einzulesen().length }} neu,
+              {{ rows.length - einzulesen().length }} werden übergangen.
+            </p>
+
+            @if (ohneArt().length > 0) {
+              <div class="mb-2 flex flex-wrap items-center gap-2 text-sm">
+                <span class="text-accent"
+                  >{{ ohneArt().length }} ohne Art — bitte wählen, souffleur rät sie nicht.</span
+                >
+                <select
+                  #alle
+                  (change)="setMissingTypes(+alle.value); alle.value = ''"
+                  aria-label="Allen ohne Art geben"
+                  class="rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+                >
+                  <option value="">— allen ohne Art geben —</option>
+                  @for (type of types; track type.value) {
+                    <option [value]="type.value">{{ type.label }}</option>
+                  }
+                </select>
+              </div>
+            }
+
+            <div class="max-h-72 overflow-auto rounded-md border border-border">
+              <table class="w-full border-collapse text-sm">
+                <thead class="sticky top-0 bg-surface-sunken">
+                  <tr class="text-left text-xs text-content-muted">
+                    <th class="w-24 px-2 py-1 font-medium">Nummer</th>
+                    <th class="px-2 py-1 font-medium">Name</th>
+                    <th class="w-44 px-2 py-1 font-medium">Art</th>
+                    <th class="w-24 px-2 py-1 font-medium">Schlüssel</th>
+                    <th class="w-28 px-2 py-1 font-medium"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of rows; track $index) {
+                    <tr class="border-t border-border" [class.opacity-50]="row.lage !== 'neu'">
+                      <td class="px-2 py-1 tabular">{{ row.number || '—' }}</td>
+                      <td class="px-2 py-1">{{ row.name || '—' }}</td>
+                      <td class="px-2 py-1">
+                        @if (row.lage === 'neu') {
+                          <select
+                            [ngModel]="row.type"
+                            (ngModelChange)="setRowType(row, $event)"
+                            [attr.aria-label]="'Art von ' + row.number"
+                            class="w-full rounded-md border bg-surface px-1.5 py-0.5 text-xs text-content"
+                            [class.border-accent]="row.type === null"
+                            [class.border-border]="row.type !== null"
+                          >
+                            <option [ngValue]="null">— Art wählen —</option>
+                            @for (type of types; track type.value) {
+                              <option [ngValue]="type.value">{{ type.label }}</option>
+                            }
+                          </select>
+                        } @else {
+                          {{ typeLabel(row.type) }}
+                        }
+                      </td>
+                      <td class="px-2 py-1 tabular">{{ row.taxKey ?? '' }}</td>
+                      <td class="px-2 py-1 text-xs text-content-muted">
+                        @switch (row.lage) {
+                          @case ('vorhanden') {
+                            gibt es schon
+                          }
+                          @case ('unbrauchbar') {
+                            ohne Nummer oder Name
+                          }
+                          @default {
+                            neu
+                          }
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+
+            <div class="mt-2 flex justify-end gap-2">
+              <button
+                type="button"
+                (click)="verwerfen()"
+                class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+              >
+                Verwerfen
+              </button>
+              <button
+                type="button"
+                (click)="einlesen()"
+                [disabled]="busy() || einzulesen().length === 0 || ohneArt().length > 0"
+                class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
+              >
+                {{ einzulesen().length }} {{ einzulesen().length === 1 ? 'Konto' : 'Konten' }}
+                einlesen
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+
+    <div class="mb-2 flex max-w-4xl flex-wrap items-center gap-3">
+      <input
+        type="search"
+        [ngModel]="filter()"
+        (ngModelChange)="filter.set($event)"
+        placeholder="Nummer oder Name"
+        aria-label="Konten filtern"
+        class="w-64 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      />
+      @if (inactiveCount() > 0) {
+        <label class="flex items-center gap-2 text-sm text-content-muted">
+          <input
+            type="checkbox"
+            [ngModel]="showInactive()"
+            (ngModelChange)="showInactive.set($event)"
+          />
+          <span>auch stillgelegte ({{ inactiveCount() }})</span>
+        </label>
+      }
+      <span class="ml-auto text-xs text-content-faint tabular">
+        {{ shown().length }} von {{ accounts().length }} Konten
+      </span>
+    </div>
+
+    @if (accounts().length === 0) {
+      <p class="max-w-prose text-sm text-content-muted">
+        Noch keine Konten. Am einfachsten die Liste vom Steuerbüro einlesen.
+      </p>
+    } @else {
+      <table class="w-full max-w-4xl border-collapse text-sm" aria-label="Konten">
+        <thead>
+          <tr class="border-b border-border text-left text-xs text-content-muted">
+            <th class="w-24 py-1.5 font-medium">Nummer</th>
+            <th class="py-1.5 font-medium">Name</th>
+            <th class="w-40 py-1.5 font-medium">Art</th>
+            <th class="w-24 py-1.5 font-medium">Schlüssel</th>
+            @if (needsSpheres()) {
+              <th class="w-48 py-1.5 font-medium">Sphäre (Vorschlag)</th>
+            }
+            <th class="w-40 py-1.5"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (account of shown(); track account.id) {
+            <tr class="border-b border-border" [class.opacity-50]="!account.isActive">
+              <td class="py-1.5 tabular">{{ account.number }}</td>
+              <td class="py-1.5">
+                {{ account.name }}
+                @if (!account.isActive) {
+                  <span class="text-xs text-content-faint">stillgelegt</span>
+                }
+              </td>
+              <td class="py-1.5 text-content-muted">{{ typeLabel(account.type) }}</td>
+              <td class="py-1.5 text-content-muted tabular">{{ account.taxKey ?? '—' }}</td>
+              @if (needsSpheres()) {
+                <td class="py-1.5 text-xs text-content-muted">
+                  {{ sphereLabel(account.defaultTaxSphere) }}
+                </td>
+              }
+              <td class="py-1.5 text-right">
+                @if (canBook()) {
+                  <button
+                    type="button"
+                    (click)="startEdit(account)"
+                    [attr.aria-label]="account.number + ' ändern'"
+                    class="cursor-pointer border-0 bg-transparent px-1 text-xs text-content-muted hover:text-brand"
+                  >
+                    Ändern
+                  </button>
+                  <button
+                    type="button"
+                    (click)="setActive(account, !account.isActive)"
+                    [attr.aria-label]="
+                      account.number + (account.isActive ? ' stilllegen' : ' wieder aufnehmen')
+                    "
+                    class="cursor-pointer border-0 bg-transparent px-1 text-xs text-content-muted hover:text-brand"
+                  >
+                    {{ account.isActive ? 'Stilllegen' : 'Wieder aufnehmen' }}
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+
+    @if (canBook()) {
+      <button
+        type="button"
+        (click)="startNew()"
+        class="mt-3 cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast"
+      >
+        Konto anlegen
+      </button>
+    }
+
+    <h2 class="m-0 mt-8 font-display text-base font-semibold">Kostenstellen</h2>
+    <p class="m-0 mt-1 max-w-prose text-sm text-content-muted">
+      Wofür das Geld ausgegeben wurde, quer zu den Konten: eine Produktion, ein Festival, ein
+      Förderprojekt.
+    </p>
+
+    @if (costCenters().length > 0) {
+      <ul class="m-0 mt-2 max-w-xl list-none divide-y divide-border p-0" aria-label="Kostenstellen">
+        @for (center of costCenters(); track center.id) {
+          <li class="flex gap-3 py-1.5 text-sm">
+            <span class="w-24 tabular">{{ center.number }}</span>
+            <span>{{ center.name }}</span>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (canBook()) {
+      @if (costProblems().length > 0) {
+        <souffleur-meldung class="mt-2 max-w-xl" [texte]="costProblems()" />
+      }
+      <div class="mt-2 flex max-w-xl flex-wrap items-end gap-2">
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Nummer</span>
+          <input
+            type="text"
+            [ngModel]="costNumber()"
+            (ngModelChange)="costNumber.set($event)"
+            class="w-24 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content tabular"
+          />
+        </label>
+        <label class="block grow">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Name der Kostenstelle</span>
+          <input
+            type="text"
+            [ngModel]="costName()"
+            (ngModelChange)="costName.set($event)"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          />
+        </label>
+        <button
+          type="button"
+          (click)="addCostCenter()"
+          class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+        >
+          Kostenstelle anlegen
+        </button>
+      </div>
+    }
+  }
+</div>
+
+@if (editing() !== null) {
+  <souffleur-dialog
+    [heading]="editing() === 'neu' ? 'Konto anlegen' : 'Konto ' + draft().number + ' ändern'"
+    (closed)="cancel()"
+  >
+    <div class="space-y-3">
+      @if (problems().length > 0) {
+        <souffleur-meldung [texte]="problems()" />
+      }
+
+      <div class="grid grid-cols-[8rem_1fr] gap-3">
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Nummer</span>
+          <input
+            type="text"
+            inputmode="numeric"
+            [ngModel]="draft().number"
+            (ngModelChange)="patch({ number: $event })"
+            [disabled]="editing() !== 'neu'"
+            [title]="
+              editing() !== 'neu'
+                ? 'Die Nummer bleibt: Buchungen und DATEV-Stapel verweisen auf sie.'
+                : ''
+            "
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content tabular disabled:opacity-60"
+          />
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Name</span>
+          <input
+            type="text"
+            [ngModel]="draft().name"
+            (ngModelChange)="patch({ name: $event })"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          />
+        </label>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Art</span>
+          <select
+            [ngModel]="draft().type"
+            (ngModelChange)="patch({ type: $event })"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          >
+            <option [ngValue]="null">— wählen —</option>
+            @for (type of types; track type.value) {
+              <option [ngValue]="type.value">{{ type.label }}</option>
+            }
+          </select>
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Steuerschlüssel</span>
+          <input
+            type="text"
+            [ngModel]="draft().taxKey"
+            (ngModelChange)="patch({ taxKey: $event })"
+            placeholder="leer: je Buchung"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content tabular"
+          />
+        </label>
+      </div>
+
+      @if (needsSpheres()) {
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted"
+            >Sphäre, die beim Buchen vorgeschlagen wird</span
+          >
+          <select
+            [ngModel]="draft().defaultTaxSphere"
+            (ngModelChange)="patch({ defaultTaxSphere: $event })"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          >
+            <option [ngValue]="null">— kein Vorschlag —</option>
+            @for (sphere of spheres; track sphere.value) {
+              <option [ngValue]="sphere.value">{{ sphere.label }}</option>
+            }
+          </select>
+        </label>
+      }
+
+      @if (editing() !== 'neu') {
+        <label class="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            [ngModel]="draft().isActive"
+            (ngModelChange)="patch({ isActive: $event })"
+          />
+          <span>Wird bebucht — stillgelegte Konten bleiben für alte Buchungen erhalten</span>
+        </label>
+      }
+    </div>
+
+    <button
+      dialogActions
+      type="button"
+      (click)="cancel()"
+      class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+    >
+      Abbrechen
+    </button>
+    <button
+      dialogActions
+      type="button"
+      (click)="save()"
+      [disabled]="busy()"
+      class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
+    >
+      {{ busy() ? 'Wird gespeichert …' : editing() === 'neu' ? 'Anlegen' : 'Speichern' }}
+    </button>
+  </souffleur-dialog>
+}

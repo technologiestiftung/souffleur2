@@ -1,7 +1,46 @@
-<souffleur-dialog [heading]="'Termin am ' + date()" (closed)="closed.emit()">
+<souffleur-dialog [heading]="heading()" (closed)="closed.emit()">
   <div class="space-y-3">
     @if (problems().length > 0) {
       <souffleur-meldung [texte]="problems()" />
+    }
+
+    @if (loading()) {
+      <p class="m-0 text-sm text-content-muted">Einen Moment…</p>
+    }
+
+    <!-- Bei einem Termin aus einer Serie zuerst die Frage, was gemeint ist. -->
+    @if (fromSeries()) {
+      <div role="radiogroup" aria-label="Was ändern" class="flex gap-1 rounded-lg bg-surface-sunken p-1">
+        <button
+          type="button"
+          role="radio"
+          [attr.aria-checked]="scope() === 'einzeln'"
+          (click)="setScope('einzeln')"
+          class="flex-1 cursor-pointer rounded-md border-0 px-3 py-1.5 text-sm"
+          [class.bg-surface-raised]="scope() === 'einzeln'"
+          [class.font-semibold]="scope() === 'einzeln'"
+          [class.bg-transparent]="scope() !== 'einzeln'"
+        >
+          Nur dieser Termin
+        </button>
+        <button
+          type="button"
+          role="radio"
+          [attr.aria-checked]="scope() === 'serie'"
+          (click)="setScope('serie')"
+          class="flex-1 cursor-pointer rounded-md border-0 px-3 py-1.5 text-sm"
+          [class.bg-surface-raised]="scope() === 'serie'"
+          [class.font-semibold]="scope() === 'serie'"
+          [class.bg-transparent]="scope() !== 'serie'"
+        >
+          Ganze Serie
+        </button>
+      </div>
+      @if (wholeSeries()) {
+        <p class="m-0 text-xs text-content-muted">
+          Einzeln geänderte Termine der Serie bleiben, wie sie sind.
+        </p>
+      }
     }
 
     <label class="block">
@@ -34,7 +73,7 @@
           [(ngModel)]="status"
           class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
         >
-          @for (option of statuses; track option.value) {
+          @for (option of statuses(); track option.value) {
             <option [value]="option.value">{{ option.label }}</option>
           }
         </select>
@@ -54,6 +93,20 @@
             <option [value]="production.id">{{ production.title }}</option>
           }
         </select>
+      </label>
+    }
+
+    @if (editing()) {
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">{{
+          wholeSeries() ? 'Erster Termin der Serie' : 'Datum'
+        }}</span>
+        <input
+          type="date"
+          [(ngModel)]="day"
+          (ngModelChange)="forgetCheck()"
+          class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content tabular"
+        />
       </label>
     }
 
@@ -244,12 +297,18 @@
 
     <!-- Die Wiederholung gehört hierher und nicht hinter einen zweiten Knopf:
            Ob eine Probe einmal oder jeden Dienstag stattfindet, weiß man beim
-           Eintragen. -->
+           Eintragen. Beim Bearbeiten nur für die ganze Serie: Ein Termin wird
+           nicht nachträglich zur Serie. -->
+    @if (!editing() || wholeSeries()) {
     <div class="rounded-md border border-border p-3">
-      <label class="flex items-center gap-2 text-sm font-medium">
-        <input type="checkbox" [(ngModel)]="repeats" />
-        <span>Wiederholt sich</span>
-      </label>
+      @if (editing()) {
+        <span class="text-sm font-medium">Wiederholung</span>
+      } @else {
+        <label class="flex items-center gap-2 text-sm font-medium">
+          <input type="checkbox" [(ngModel)]="repeats" />
+          <span>Wiederholt sich</span>
+        </label>
+      }
 
       @if (repeats()) {
         <div class="mt-3 space-y-3">
@@ -318,7 +377,48 @@
         </div>
       }
     </div>
+    }
+
+    @if (attachTo(); as eventId) {
+      <div class="space-y-3 border-t border-border pt-3">
+        @if (documentsOn()) {
+          <souffleur-dokumente-am-ziel target="Event" [targetId]="eventId" />
+        }
+        <souffleur-lesezeichen target="Event" [targetId]="eventId" />
+      </div>
+    } @else if (editing() && !wholeSeries()) {
+      <p class="m-0 border-t border-border pt-3 text-xs text-content-faint">
+        Dokumente und Lesezeichen lassen sich anhängen, sobald dieser Termin einmal
+        gespeichert ist.
+      </p>
+    }
   </div>
+
+  @if (canDelete()) {
+    <button
+      dialogActions
+      type="button"
+      (click)="remove()"
+      [disabled]="saving()"
+      class="mr-auto cursor-pointer rounded-md border px-3 py-1.5 text-sm disabled:opacity-60"
+      [class.border-critical]="confirmDelete()"
+      [class.bg-critical]="confirmDelete()"
+      [class.text-white]="confirmDelete()"
+      [class.border-border]="!confirmDelete()"
+      [class.bg-transparent]="!confirmDelete()"
+      [class.text-critical]="!confirmDelete()"
+    >
+      {{
+        confirmDelete()
+          ? wholeSeries()
+            ? 'Ganze Serie wirklich löschen'
+            : 'Wirklich löschen'
+          : wholeSeries()
+            ? 'Serie löschen'
+            : 'Löschen'
+      }}
+    </button>
+  }
 
   <button
     dialogActions
@@ -336,16 +436,16 @@
       [disabled]="saving()"
       class="cursor-pointer rounded-md border border-accent bg-transparent px-3 py-1.5 text-sm text-accent disabled:opacity-60"
     >
-      Trotzdem anlegen
+      {{ editing() ? 'Trotzdem speichern' : 'Trotzdem anlegen' }}
     </button>
   }
   <button
     dialogActions
     type="button"
     (click)="save()"
-    [disabled]="saving()"
+    [disabled]="saving() || loading()"
     class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
   >
-    {{ saving() ? 'Wird gespeichert …' : 'Anlegen' }}
+    {{ saving() ? 'Wird gespeichert …' : editing() ? 'Speichern' : 'Anlegen' }}
   </button>
 </souffleur-dialog>

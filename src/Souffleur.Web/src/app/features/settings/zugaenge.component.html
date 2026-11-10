@@ -39,7 +39,16 @@
       Anlegen auch hier, nicht nur links in der Leiste: Wer auf „Gruppen"
       steht und eine neue will, sucht den Knopf bei der Liste (Wolf, 09.11.2026).
     -->
-    @if (reiter() === 'gruppen') {
+    @if (reiter() === 'personen') {
+      <button
+        type="button"
+        (click)="neuesKonto()"
+        class="mb-1 ml-auto flex cursor-pointer items-center gap-1.5 self-center rounded-md border border-border bg-transparent px-2.5 py-1 text-sm text-brand hover:bg-surface-sunken"
+      >
+        <souffleur-icon name="plus" [size]="13" />
+        Konto
+      </button>
+    } @else if (reiter() === 'gruppen') {
       <button
         type="button"
         (click)="neueGruppe()"
@@ -69,7 +78,7 @@
           <th class="py-1.5 font-medium">Eigene Rollen</th>
           <th class="py-1.5 font-medium">Gruppen</th>
           <th class="w-20 py-1.5 text-right font-medium">Rechte</th>
-          <th class="w-24 py-1.5"></th>
+          <th class="w-56 py-1.5"></th>
         </tr>
       </thead>
       <tbody>
@@ -78,6 +87,13 @@
             <td class="py-2">
               <div class="font-medium">{{ person.name }}</div>
               <div class="text-xs text-content-faint">{{ person.email }}</div>
+              <div
+                class="text-xs"
+                [class.text-accent]="!person.hasPassword && person.isActive"
+                [class.text-content-faint]="person.hasPassword || !person.isActive"
+              >
+                {{ stand(person) }}
+              </div>
             </td>
             <td class="py-2">
               <div class="flex flex-wrap gap-1">
@@ -105,6 +121,29 @@
                 class="cursor-pointer border-0 bg-transparent text-sm text-brand hover:underline"
               >
                 Rollen
+              </button>
+              @if (person.isActive) {
+                <button
+                  type="button"
+                  (click)="neuerLink(person)"
+                  [attr.aria-label]="'Neuer Link für ' + person.name"
+                  [title]="
+                    person.hasPassword
+                      ? 'Ein Link, über den die Person ein neues Passwort setzt'
+                      : 'Ein neuer Einladungslink; der alte gilt danach nicht mehr'
+                  "
+                  class="ml-2 cursor-pointer border-0 bg-transparent text-sm text-brand hover:underline"
+                >
+                  Neuer Link
+                </button>
+              }
+              <button
+                type="button"
+                (click)="sperren(person, person.isActive)"
+                [attr.aria-label]="(person.isActive ? 'Sperren: ' : 'Freigeben: ') + person.name"
+                class="ml-2 cursor-pointer border-0 bg-transparent text-sm text-content-muted hover:underline"
+              >
+                {{ person.isActive ? 'Sperren' : 'Freigeben' }}
               </button>
             </td>
           </tr>
@@ -367,6 +406,131 @@
       class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-semibold text-brand-contrast disabled:opacity-60"
     >
       {{ busy() ? 'Wird gespeichert …' : 'Speichern' }}
+    </button>
+  </souffleur-dialog>
+}
+
+@if (konto(); as k) {
+  <souffleur-dialog heading="Konto anlegen" (closed)="konto.set(null)">
+    <div class="space-y-3">
+      <p class="m-0 text-sm text-content-muted">
+        Ohne Passwort: souffleur erzeugt einen Einladungslink, und die Person legt ihr Passwort
+        selbst fest. So kennt es niemand außer ihr.
+      </p>
+
+      @if (kontoProbleme().length > 0) {
+        <souffleur-meldung [texte]="kontoProbleme()" />
+      }
+
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Vorname</span>
+          <input
+            type="text"
+            [ngModel]="k.givenName"
+            (ngModelChange)="kontoAendern({ givenName: $event })"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          />
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Nachname</span>
+          <input
+            type="text"
+            [ngModel]="k.surname"
+            (ngModelChange)="kontoAendern({ surname: $event })"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          />
+        </label>
+      </div>
+
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">E-Mail-Adresse</span>
+        <input
+          type="email"
+          [ngModel]="k.email"
+          (ngModelChange)="kontoAendern({ email: $event })"
+          class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+
+      <fieldset class="m-0 border-0 p-0">
+        <legend class="mb-1 p-0 text-xs font-medium text-content-muted">Rollen</legend>
+        <div class="flex flex-wrap gap-x-4 gap-y-1">
+          @for (rolle of rollen(); track rolle.id) {
+            <label class="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                [checked]="k.roleIds.includes(rolle.id)"
+                (change)="kontoAendern({ roleIds: umschalten(k.roleIds, rolle.id) })"
+              />
+              {{ rolle.label }}
+            </label>
+          }
+        </div>
+      </fieldset>
+    </div>
+
+    <button
+      dialogActions
+      type="button"
+      (click)="konto.set(null)"
+      class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+    >
+      Abbrechen
+    </button>
+    <button
+      dialogActions
+      type="button"
+      (click)="kontoAnlegen()"
+      [disabled]="busy()"
+      class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
+    >
+      {{ busy() ? 'Wird angelegt …' : 'Anlegen und einladen' }}
+    </button>
+  </souffleur-dialog>
+}
+
+@if (einladung(); as e) {
+  <souffleur-dialog [heading]="'Einladung für ' + e.name" (closed)="einladung.set(null)">
+    <div class="space-y-3 text-sm">
+      @if (e.invitation.mailed) {
+        <p class="m-0">Der Link ist per Mail hinausgegangen. Zur Sicherheit steht er auch hier:</p>
+      } @else {
+        <p class="m-0">
+          Es ist kein Mailserver eingetragen. Diesen Link bitte selbst weitergeben — am besten auf
+          einem Weg, den nur diese Person liest:
+        </p>
+      }
+      <div class="flex items-center gap-2">
+        <input
+          type="text"
+          readonly
+          [value]="e.invitation.link"
+          aria-label="Einladungslink"
+          (focus)="$any($event.target).select()"
+          class="min-w-0 flex-1 rounded-md border border-border bg-surface-sunken px-2 py-1.5 font-mono text-xs text-content"
+        />
+        <button
+          type="button"
+          (click)="linkKopieren(e.invitation.link)"
+          class="shrink-0 cursor-pointer rounded-md border border-border bg-transparent px-2.5 py-1.5 text-sm text-content"
+        >
+          {{ kopiert() ? 'Kopiert' : 'Kopieren' }}
+        </button>
+      </div>
+      <p class="m-0 text-xs text-content-muted">
+        Gilt bis {{ gueltigBis(e.invitation) }} und lässt sich einmal benutzen. Ein neuer Link macht
+        diesen ungültig.
+      </p>
+    </div>
+
+    <button
+      dialogActions
+      type="button"
+      (click)="einladung.set(null)"
+      class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast"
+    >
+      Fertig
     </button>
   </souffleur-dialog>
 }

@@ -3,7 +3,7 @@ import { Component, ElementRef, computed, effect, inject, signal, viewChild } fr
 import { FormsModule } from '@angular/forms';
 import { Contact } from '../core/contacts.service';
 import { Empfaenger, Mail, MailService } from '../core/mail.service';
-import { messagesFrom } from '../features/calendar/event-dialog.component';
+import { messagesFrom } from '../shared/fehler';
 import { IconComponent } from '../shared/icon.component';
 
 /**
