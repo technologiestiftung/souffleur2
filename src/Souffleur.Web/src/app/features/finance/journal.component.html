@@ -352,7 +352,10 @@
         </p>
       </div>
     } @else {
-      <div class="min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-surface-raised">
+      <!-- Mindesthöhe: Auf einem Laptop füllen die Kennzahlen sonst den
+           Bildschirm, die Buchungsliste bekäme keine Höhe und wäre unerreichbar.
+           So scrollt dann die Seite, und darunter die Buchungsliste. -->
+      <div class="min-h-96 flex-1 overflow-auto rounded-xl border border-border bg-surface-raised">
         <table class="w-full border-collapse text-sm">
           <thead class="sticky top-0 bg-surface-sunken">
             <tr class="border-b border-border text-left">

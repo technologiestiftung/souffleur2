@@ -115,9 +115,16 @@ export class VouchersComponent implements OnInit {
       ],
     );
 
-    this.contacts.set(await this.peopleList.all());
-    this.productions.set(await this.productionList.choices());
-    await this.reload();
+    // Gleichzeitig, nicht nacheinander: reload() setzt das Ergebnis des
+    // Prüflaufs zurück. Lief es erst nach Kontakten und Produktionen, wischte
+    // es ein Ergebnis weg, das jemand mit schnellem Klick schon geholt hatte.
+    const [contacts, productions] = await Promise.all([
+      this.peopleList.all(),
+      this.productionList.choices(),
+      this.reload(),
+    ]);
+    this.contacts.set(contacts);
+    this.productions.set(productions);
 
     // Wer von der Übersicht kommt, will den Bogen schon offen sehen.
     if (this.route.snapshot.queryParamMap.get('neu')) {

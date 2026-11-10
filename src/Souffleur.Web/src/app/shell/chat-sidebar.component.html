@@ -1,4 +1,4 @@
-@if (!layout.chatOpen() || !layout.chatPinned()) {
+@if (!layout.chatDocked()) {
   <aside
     aria-label="Kommunikation, zugeklappt"
     class="flex w-13 shrink-0 flex-col items-center gap-2 border-l border-border bg-surface-raised pt-3"
@@ -41,7 +41,7 @@
   <aside
     aria-label="Kommunikation"
     [class]="
-      layout.chatPinned()
+      layout.chatDocked()
         ? 'flex w-80 shrink-0 flex-col border-l border-border bg-surface-raised'
         : 'absolute right-0 top-0 z-40 flex h-full w-80 flex-col border-l border-border bg-surface-raised shadow-xl transition-transform duration-150 ease-out starting:translate-x-full'
     "
