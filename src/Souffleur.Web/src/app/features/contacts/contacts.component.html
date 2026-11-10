@@ -420,7 +420,7 @@
       <!-- Mindesthöhe: Auf einem Laptop füllen die Kennzahlen sonst den
            Bildschirm, die Tabelle bekäme keine Höhe und wäre unerreichbar.
            So scrollt dann die Seite, und darunter die Tabelle. -->
-      <div class="min-h-96 flex-1 overflow-auto rounded-xl border border-border bg-surface-raised">
+      <div tabindex="0" role="region" aria-label="Kontakte, Liste" class="min-h-96 flex-1 overflow-auto rounded-xl border border-border bg-surface-raised">
         <table class="w-full border-collapse text-sm">
           <thead class="sticky top-0 bg-surface-sunken">
             <tr class="border-b border-border text-left">
@@ -460,7 +460,7 @@
             @for (contact of shown(); track contact.id) {
               <tr
                 class="cursor-pointer border-b border-border/60 hover:bg-surface-sunken"
-                [class.opacity-60]="!contact.isActive"
+                [class.gedimmt]="!contact.isActive"
                 (click)="startEdit(contact)"
               >
                 <td class="px-3 py-2">

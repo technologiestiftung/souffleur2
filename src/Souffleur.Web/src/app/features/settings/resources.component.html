@@ -34,7 +34,7 @@
       @for (resource of entries(); track resource.id) {
         <tr
           class="border-b border-border"
-          [class.opacity-50]="!resource.isActive"
+          [class.gedimmt]="!resource.isActive"
           [attr.data-sortier-id]="resource.id"
         >
           <td class="py-1.5">

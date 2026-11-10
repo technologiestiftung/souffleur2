@@ -83,7 +83,7 @@
         <!-- Mindesthöhe: Auf einem Laptop füllen die Kennzahlen sonst den
              Bildschirm, die Liste bekäme keine Höhe und wäre unerreichbar.
              So scrollt dann die Seite, und darunter die Liste. -->
-        <div class="min-h-96 flex-1 overflow-auto">
+        <div tabindex="0" role="region" aria-label="Dienste, Liste" class="min-h-96 flex-1 overflow-auto">
           <ul class="flex max-w-4xl list-none flex-col gap-4 p-0">
             @for (day of days(); track day.date) {
               <li>
