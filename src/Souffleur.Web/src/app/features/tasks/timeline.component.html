@@ -86,7 +86,7 @@
           <div
             class="flex items-center gap-1.5 border-b border-border px-2 text-xs"
             [style.height.px]="rowHeight"
-            [class.opacity-60]="!task.isOpen"
+            [class.gedimmt]="!task.isOpen"
           >
             @if (task.parentId) {
               <span class="text-content-faint">└</span>
@@ -176,7 +176,7 @@
                 [style.width.px]="10"
                 [style.height.px]="10"
                 [style.background]="task.categoryColor ?? 'var(--color-border-strong)'"
-                [class.opacity-60]="!task.isOpen"
+                [class.gedimmt]="!task.isOpen"
                 [title]="task.title + ' · ' + task.from"
               ></div>
             } @else {
@@ -188,7 +188,7 @@
                 [style.height.px]="rowHeight - 10"
                 [style.background]="wash(task)"
                 [style.border-left]="'2px solid ' + accent(task)"
-                [class.opacity-60]="!task.isOpen"
+                [class.gedimmt]="!task.isOpen"
                 [title]="task.title + ' · ' + task.from + ' bis ' + task.to"
               >
                 @if (task.assigneeName) {

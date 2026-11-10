@@ -17,7 +17,7 @@
           <div
             class="min-h-24 min-w-0 border-r border-b border-border px-1 py-1"
             [class.bg-surface-sunken]="day.isWeekend"
-            [class.opacity-45]="!day.inMonth"
+            [class.gedimmt]="!day.inMonth"
           >
             <button
               type="button"
@@ -40,7 +40,7 @@
                 [style.border-left-color]="accent(entry.categoryColor)"
                 [style.background]="wash(entry.categoryColor)"
                 [class.line-through]="entry.status === 3"
-                [class.opacity-55]="entry.status === 3"
+                [class.gedimmt]="entry.status === 3"
                 [class.italic]="entry.status === 1"
               >
                 @if (time(entry)) {

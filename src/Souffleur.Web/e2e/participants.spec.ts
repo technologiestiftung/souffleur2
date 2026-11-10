@@ -47,8 +47,7 @@ async function assign(page: Page, surname: string): Promise<void> {
   const options = await picker.locator('option').allTextContents();
   const index = options.findIndex((text) => text.includes(surname));
 
-  expect(index, `„${surname}" steht nicht zur Auswahl: ${options.join(' | ')}`)
-    .toBeGreaterThan(0);
+  expect(index, `„${surname}" steht nicht zur Auswahl: ${options.join(' | ')}`).toBeGreaterThan(0);
 
   await picker.selectOption({ index });
 }
@@ -60,8 +59,9 @@ test('die Wortmarke kennzeichnet Vorführdaten', async ({ page }) => {
   // Erfundene Termine sehen wie echte aus, sobald sie den Kalender verlassen.
   // Die Kennzeichnung hängt an der Wortmarke -- kein eigenes Schild, das den
   // Reitern die Breite nimmt.
-  await expect(page.getByTitle(/In dieser Installation stehen erfundene Daten\./))
-    .toContainText('souffleur');
+  await expect(page.getByTitle(/In dieser Installation stehen erfundene Daten\./)).toContainText(
+    'souffleur',
+  );
 
   expect(errors, `Fehler in der Browserkonsole:\n${errors.join('\n')}`).toEqual([]);
 });
@@ -136,8 +136,8 @@ test('der Personenfilter zeigt nur deren Termine', async ({ page }) => {
   await signIn(page);
   await page.goto('/kalender');
 
-  const filter = page.getByLabel('Person').or(page.locator('select').last());
-  await page.getByRole('combobox').last().selectOption({ label: 'Behrens, Anja' });
+  const filter = page.getByRole('main').getByRole('combobox', { name: 'Person' });
+  await filter.selectOption({ label: 'Behrens, Anja' });
 
   // Anja Behrens führt Regie bei den Hamlet-Proben, spielt aber nicht in
   // „Der Besuch der alten Dame".

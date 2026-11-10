@@ -86,7 +86,9 @@ test('das Konto des Hauses steht da', async ({ page }) => {
   await signIn(page);
   await page.goto('/finanzen/bank');
 
-  await expect(page.getByRole('combobox').first()).toContainText('Geschäftskonto');
+  await expect(page.getByRole('main').getByRole('combobox').first()).toContainText(
+    'Geschäftskonto',
+  );
 
   // Was noch fehlt, steht auch da -- statt so zu tun, als gäbe es es.
   await expect(page.getByText(/Die Verbindung zur Bank selbst/)).toBeVisible();

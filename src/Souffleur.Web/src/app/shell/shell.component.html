@@ -117,7 +117,7 @@
           (click)="signOut()"
           aria-label="Abmelden"
           [title]="'Abmelden (' + (user()?.displayName ?? '') + ')'"
-          class="flex items-center rounded-md border-0 bg-transparent px-2 py-1 text-sm text-brand-contrast/80 underline-offset-2 hover:text-brand-contrast hover:underline"
+          class="flex items-center rounded-md border-0 bg-transparent px-2 py-1 text-sm text-brand-contrast/90 underline-offset-2 hover:text-brand-contrast hover:underline"
         >
           <souffleur-icon name="abmelden" [size]="16" class="xl:hidden" />
           <span class="hidden xl:inline">Abmelden</span>
@@ -143,7 +143,7 @@
           [attr.data-sortier-id]="tab.key"
           draggable="false"
           routerLinkActive="!bg-surface !text-brand rounded-t-md font-semibold"
-          class="flex shrink-0 items-center gap-1.5 px-3 py-2 text-sm font-medium text-brand-contrast/80 no-underline hover:text-brand-contrast"
+          class="flex shrink-0 items-center gap-1.5 px-3 py-2 text-sm font-medium text-brand-contrast/90 no-underline hover:text-brand-contrast"
         >
           <souffleur-icon [name]="tab.icon" [size]="15" />
           {{ tab.label }}

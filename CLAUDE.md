@@ -45,7 +45,8 @@ wer selbst handelt, bekommt keinen Hinweis.
 
 ## Stand
 
-516 .NET-Tests, 115 Browsertests grün (10.11.2026). Auf 1280×720 fuellten die Kennzahlen die Personal-Seite, die Dienste-Liste
+516 .NET-Tests, 118 Browsertests grün (10.11.2026), darunter die
+Barrierefreiheit aller Hauptseiten. Auf 1280×720 fuellten die Kennzahlen die Personal-Seite, die Dienste-Liste
 (`flex-1 overflow-auto` unter `h-full`) bekam keine Hoehe und war nicht
 erreichbar. Je nachdem, ob die Kacheln vor dem Klick geladen waren, wackelte
 der Test. Behoben mit `min-h-96` am Scrollbereich, ebenso Kontakte,
@@ -357,8 +358,9 @@ Seit Anfang November dazugekommen:
 Älter, ebenfalls offen:
 
 - Fehlerprotokoll in der Datenbank mit Ansicht für die Verwaltung (braucht
-  ADR: keine Nutzdaten). Litestream für die Sicherung. axe-core in die
-  Browsertests, Kontraste messen.
+  ADR: keine Nutzdaten). Litestream für die Sicherung.
+- Barrierefreiheit in Bögen, Fenstern und Menüs: `barrierefreiheit.spec.ts`
+  misst nur den Zustand nach dem Laden.
 
 ## Betrieb
 
@@ -366,6 +368,14 @@ Siehe `deploy/haus/README.md`. Das Image läuft mit
 `ASPNETCORE_ENVIRONMENT=Production`.
 
 ## Fallen
+
+- **Barrierefreiheit** (`e2e/barrierefreiheit.spec.ts`, axe-core, WCAG 2.1 AA,
+  hell und dunkel): Gedimmt wird mit der Klasse `gedimmt` (Farbe `faint`), nie
+  mit `opacity` -- die senkt den Kontrast unter 4,5:1. Neue Farbtöne für Text
+  auf allen Flächen gegen 4,5:1 rechnen. Das Suchfeld der Kopfzeile ist eine
+  `combobox`; in Tests Auswahlfelder deshalb über `getByRole('main')`
+  eingrenzen. `getByLabel`/`getByRole` vergleichen Teiltext -- bei kurzen
+  Namen wie „Nachricht“ oder „Anlegen“ `exact: true`.
 
 - `Entity` vergibt die Id schon im Konstruktor. Neue Kindzeilen an einem
   **geladenen** Objekt immer ausdrücklich `context.X.Add(...)` — sonst macht

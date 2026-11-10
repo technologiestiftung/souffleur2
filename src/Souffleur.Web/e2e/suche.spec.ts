@@ -32,7 +32,7 @@ test('wer einen Kontakt sucht, landet bei seinem Bogen', async ({ page }) => {
   const errors = collectErrors(page);
   await signIn(page);
 
-  const feld = page.getByRole('searchbox', { name: 'Suchen in souffleur' });
+  const feld = page.getByRole('combobox', { name: 'Suchen in souffleur' });
   await feld.fill('krause');
 
   const liste = page.getByRole('listbox', { name: 'Suchergebnisse' });
@@ -53,7 +53,7 @@ test('wer einen Kontakt sucht, landet bei seinem Bogen', async ({ page }) => {
 test('mit der Tastatur: tippen, Pfeil, Enter -- und die Aufgabe ist offen', async ({ page }) => {
   await signIn(page);
 
-  const feld = page.getByRole('searchbox', { name: 'Suchen in souffleur' });
+  const feld = page.getByRole('combobox', { name: 'Suchen in souffleur' });
   await feld.fill('hamlet vorbereiten');
 
   const liste = page.getByRole('listbox', { name: 'Suchergebnisse' });
@@ -81,7 +81,7 @@ test('die Suche sagt, was sie nicht findet, und Strg+K führt ins Feld', async (
   await signIn(page);
 
   await page.keyboard.press('ControlOrMeta+k');
-  const feld = page.getByRole('searchbox', { name: 'Suchen in souffleur' });
+  const feld = page.getByRole('combobox', { name: 'Suchen in souffleur' });
   await expect(feld).toBeFocused();
 
   await feld.fill('xyzzy-gibt-es-nicht');

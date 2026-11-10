@@ -173,7 +173,7 @@ test('eine neue Produktion bekommt Rollen, Positionen und eine Aufgabe und steht
   await page.goBack();
 
   // Die Suche findet sie und springt hin.
-  const suche = page.getByRole('searchbox', { name: 'Suchen in souffleur' });
+  const suche = page.getByRole('combobox', { name: 'Suchen in souffleur' });
   await suche.fill(`Woyzeck ${stamp}`);
   const treffer = page.getByRole('listbox', { name: 'Suchergebnisse' });
   await expect(treffer.getByRole('group', { name: 'Produktionen' })).toBeVisible();

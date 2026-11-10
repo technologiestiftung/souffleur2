@@ -36,7 +36,7 @@
               type="button"
               (click)="dayPicked.emit(cell.date)"
               class="w-full cursor-pointer border-0 bg-transparent p-0 text-left text-[10px] leading-none text-content-faint hover:text-brand"
-              [attr.aria-label]="'Tag ' + cell.date + ' zeigen'"
+              [attr.aria-label]="'Tag ' + cell.date + ' zeigen, ' + cell.weekday"
             >
               {{ cell.weekday }}
             </button>
@@ -50,7 +50,7 @@
                 [style.border-left-color]="accent(entry.categoryColor)"
                 [style.background]="wash(entry.categoryColor)"
                 [class.line-through]="entry.status === 3"
-                [class.opacity-55]="entry.status === 3"
+                [class.gedimmt]="entry.status === 3"
                 [class.italic]="entry.status === 1"
               >
                 @if (time(entry)) {
