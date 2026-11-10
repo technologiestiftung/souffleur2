@@ -29,6 +29,9 @@ export interface Conversation {
   unread: number;
   participants: ChatPerson[];
   createdBy: string | null;
+
+  /** Ein Kanal, der einer Gruppe folgt -- seine Leute kommen aus ihr. */
+  groupId: string | null;
 }
 
 export interface ChatMessage {
@@ -194,7 +197,11 @@ export class ChatService {
     this.messageList.set([]);
   }
 
-  async post(text: string, mentions: Mentionable[] = []): Promise<void> {
+  async post(
+    text: string,
+    mentions: Mentionable[] = [],
+    inReplyToId: string | null = null,
+  ): Promise<void> {
     const id = this.openId();
     if (!id || !text.trim()) {
       return;
@@ -203,6 +210,7 @@ export class ChatService {
     const message = await firstValueFrom(
       this.http.post<ChatMessage>(`/api/chat/conversations/${id}/messages`, {
         text,
+        inReplyToId,
         mentions: mentions.filter((m) => m.kind === 'person').map((m) => m.id),
         groupMentions: mentions.filter((m) => m.kind === 'gruppe').map((m) => m.id),
       }),
@@ -213,9 +221,21 @@ export class ChatService {
     this.appendIfNew(message);
   }
 
-  async createChannel(name: string, isPrivate = false): Promise<Conversation> {
+  /** Den eigenen Text ändern. Die anderen sehen es über die Verbindung. */
+  async edit(messageId: string, text: string): Promise<void> {
+    const changed = await firstValueFrom(
+      this.http.put<ChatMessage>(`/api/chat/messages/${messageId}`, { text }),
+    );
+    this.replaceMessage(changed);
+  }
+
+  async createChannel(
+    name: string,
+    isPrivate = false,
+    groupId: string | null = null,
+  ): Promise<Conversation> {
     const created = await firstValueFrom(
-      this.http.post<Conversation>('/api/chat/conversations', { name, isPrivate }),
+      this.http.post<Conversation>('/api/chat/conversations', { name, isPrivate, groupId }),
     );
     await this.load();
     return created;
@@ -276,6 +296,12 @@ export class ChatService {
     await this.load();
   }
 
+  private replaceMessage(message: ChatMessage): void {
+    this.messageList.update((messages) =>
+      messages.map((m) => (m.id === message.id ? message : m)),
+    );
+  }
+
   async disconnect(): Promise<void> {
     await this.connection?.stop().catch(() => undefined);
     this.connection = null;
@@ -306,6 +332,10 @@ export class ChatService {
         } else {
           this.bumpUnread(message.conversationId);
         }
+      });
+
+      this.connection.on('messageEdited', (message: ChatMessage) => {
+        this.replaceMessage(message);
       });
 
       this.connection.on('messageRetracted', (id: string) => {

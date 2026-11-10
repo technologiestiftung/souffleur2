@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Souffleur.Domain.Identity;
+using Souffleur.Infrastructure.Conversations;
 using Souffleur.Infrastructure.Persistence;
 
 namespace Souffleur.Infrastructure.Identity;
@@ -178,6 +179,9 @@ public class AccessAdminService(
 
         await context.SaveChangesAsync(cancellationToken);
         await RefreshAsync([.. vorher.Concat(memberIds).Distinct()], cancellationToken);
+
+        // Die Kanaele der Gruppe ziehen mit: Wer neu dabei ist, ist im Kanal.
+        await GroupChannels.SyncAsync(context, id, DateTimeOffset.UtcNow, cancellationToken);
         return true;
     }
 
@@ -195,6 +199,12 @@ public class AccessAdminService(
             .ToListAsync(cancellationToken);
 
         context.Groups.Remove(group);
+
+        // Der Kanal der Gruppe bleibt mit den Leuten, die zuletzt drin waren --
+        // er folgt nur keiner Gruppe mehr.
+        await context.Conversations.Where(c => c.GroupId == id)
+            .ExecuteUpdateAsync(c => c.SetProperty(x => x.GroupId, (Guid?)null), cancellationToken);
+
         await context.SaveChangesAsync(cancellationToken);
         await RefreshAsync(mitglieder, cancellationToken);
         return true;

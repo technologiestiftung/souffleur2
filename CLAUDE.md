@@ -45,7 +45,7 @@ wer selbst handelt, bekommt keinen Hinweis.
 
 ## Stand
 
-511 .NET-Tests, 112 Browsertests grün (10.11.2026). Auf 1280×720 fuellten die Kennzahlen die Personal-Seite, die Dienste-Liste
+516 .NET-Tests, 115 Browsertests grün (10.11.2026). Auf 1280×720 fuellten die Kennzahlen die Personal-Seite, die Dienste-Liste
 (`flex-1 overflow-auto` unter `h-full`) bekam keine Hoehe und war nicht
 erreichbar. Je nachdem, ob die Kacheln vor dem Klick geladen waren, wackelte
 der Test. Behoben mit `min-h-96` am Scrollbereich, ebenso Kontakte,
@@ -53,6 +53,16 @@ Buchungen und Ticketing (10.11.2026). Neue Seiten mit Kennzahlen und Liste
 darunter brauchen dieselbe Mindesthöhe.
 
 Seit Anfang November dazugekommen:
+
+- **Chat: Antworten, Ändern, Kanal je Gruppe** (10.11.2026). Antworten mit
+  Zitat über `InReplyToId` (nur innerhalb derselben Unterhaltung, sonst
+  liesse sich ein fremder geschlossener Kanal anzitieren); Klick aufs Zitat
+  springt zur Nachricht. Eigene Nachricht ändern (`PUT /api/chat/messages/{id}`,
+  Hub `messageEdited`, „bearbeitet“; Erwähnungen bleiben, wie sie beim Senden
+  waren). Ein Kanal kann einer Gruppe folgen (`Conversation.GroupId`, ohne
+  Fremdschlüssel, Migration `KanalJeGruppe` ohne Tabellenumbau): genau ihre
+  Mitglieder sind drin, `GroupChannels.SyncAsync` gleicht beim Anlegen und bei
+  jeder Gruppenänderung ab; von Hand aufnehmen/herausnehmen geht dort nicht.
 
 - **Termine bearbeiten** (10.11.2026): Im Tagesfenster hat jeder Termin aus
   dem Kalender „Bearbeiten“; derselbe `souffleur-event-dialog` mit Eingabe
@@ -344,10 +354,6 @@ Seit Anfang November dazugekommen:
 - **Ablage auf einer echten Synology nicht erprobt**: DSM-ACLs gegen den
   Container-Benutzer, Zeitstempel über SMB, Papierkorb `#recycle/souffleur/`.
 
-1. **Chat, offen**: Kanal je Gruppe, dessen Mitglieder der Gruppe folgen
-   (heute wird eine Gruppe beim Aufnehmen aufgelöst); Antworten im Faden
-   (`InReplyToId` ist da, die Oberfläche nutzt es nicht); Nachricht
-   nachträglich ändern (`Message.Edit` ohne Endpunkt).
 
 Älter, ebenfalls offen:
 
