@@ -311,11 +311,12 @@ Seit Anfang November dazugekommen:
 
 ## Offen
 
-- **Gleiches Scroll-Problem wie Personal** (siehe Stand): Kontakte
-  (`contacts.component.html:420`), Buchungen (`journal.component.html:355`),
-  Ticketing (`ticketing.component.html:169`) haben `min-h-0 flex-1
-  overflow-auto` unter `h-full` — auf 1280×720 mit Kennzahlen vermutlich
-  unerreichbar. Bei Personal half `min-h-96`.
+- **Gleiches Scroll-Problem wie Personal** (siehe Stand): Buchungen
+  (`journal.component.html:355`) — bei 1280×720 gemessen 105 px sichtbare
+  Liste, die Seite scrollt nicht. Ticketing (`ticketing.component.html:169`)
+  hat denselben Aufbau, ohne pretix-Zugang aber keine Liste zum Messen.
+  Kontakte ist seit 10.11.2026 behoben (382 statt 102 px), wie Personal mit
+  `min-h-96`.
 - **Migrationen ohne Transaktion** (`AufgabenBeteiligteLesezeichen`,
   `AblageOrdner`): melden beim Start, dass ein Schritt ausserhalb einer
   Transaktion läuft (SQLite-Tabellenumbau). Ein Abbruch genau dann
