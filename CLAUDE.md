@@ -135,8 +135,8 @@ Seit Anfang November dazugekommen:
   Kontenrahmen (SKR03/04/42/eigener) und Gemeinnützigkeit; zeigt, wann
   Buchungen eine Sphäre verlangen. gGmbH/gUG setzen den Haken von selbst.
   Nur mit `HouseManage` änderbar, sonst lesend. API `PUT /api/organization`
-  weist leere Namen ab. Kontenplan selbst (Konten ansehen, anlegen, CSV
-  einlesen) hat noch keine Oberfläche, die API dafür ist da.
+  weist leere Namen ab. Den Kontenplan selbst pflegt Einstellungen →
+  Kontenplan.
 - **Abwesenheiten** (ADR-0012): vierte Ansicht im Personal (`features/personnel/
   abwesenheiten.component.ts`, `core/absences.service.ts`, Backend
   `Api/Features/Personnel/AbsenceEndpoints.cs` unter
@@ -267,9 +267,8 @@ Seit Anfang November dazugekommen:
   Baustein `shared/lesezeichen.component.ts`: mit `targetId` spricht er mit
   dem Server, ohne (`targetId` null, Bogen im Anlegen) sammelt er in
   `ausstehend`, und die Seite legt nach dem Speichern an. Eingebaut in
-  Aufgabe, Kontakt, Dokument, Tournee, Gastspiel, Produktion (Migration
-  `ProduktionLesezeichen` hat `ProductionLinks` übernommen). Termine haben
-  noch keinen Bearbeitungsbogen, deshalb dort noch nicht. Wer einen
+  Aufgabe, Kontakt, Dokument, Tournee, Gastspiel, Produktion, Termin (Migration
+  `ProduktionLesezeichen` hat `ProductionLinks` übernommen). Wer einen
   Gegenstand löscht, ruft `RemoveAllAsync` (Aufgaben tun es).
 - **Dokumente** (Modul 10): Ablage, Schlagworte, Verknüpfungen, Sichtbarkeit
   „alle" oder Gruppen. Wer was sieht, nur in `DocumentService.Visible`.
