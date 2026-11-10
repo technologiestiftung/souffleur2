@@ -11,9 +11,10 @@ sich je Haus abschalten.
 Jedes Haus betreibt seine **eigene Installation auf der eigenen Hardware**,
 etwa einer Synology oder einem Mini-PC. Es gibt keinen zentralen Dienst.
 
-> **Status:** abgeschlossen. souffleur 2 entstand 2026 bei der
-> Technologiestiftung Berlin (kulturBdigital) und wird dort nicht
-> weiterentwickelt. Der Code steht unter MIT-Lizenz zur freien Weiterführung.
+> **Status:** im Wesentlichen abgeschlossen. souffleur 2 entstand 2026 bei der
+> Technologiestiftung Berlin (kulturBdigital). Neue Funktionen sind nicht
+> geplant; Abhängigkeiten werden über Renovate aktuell gehalten. Der Code steht
+> unter MIT-Lizenz zur freien Weiterführung.
 
 ## Stack
 
@@ -130,8 +131,9 @@ Syntax.
 
 ## Mitwirken
 
-Das Projekt wird nicht mehr gepflegt; Issues und Pull Requests werden
-voraussichtlich nicht bearbeitet. Wer souffleur weiterführen will, ist
+Gepflegt wird nur noch das Nötigste: Abhängigkeits-Updates über Renovate und
+gelegentliche Aufräumarbeiten. Issues und Pull Requests werden gelesen, eine
+Bearbeitung ist aber nicht zugesagt. Wer souffleur weiterentwickeln will, ist
 eingeladen, das Repository zu forken.
 
 ## Lizenz
