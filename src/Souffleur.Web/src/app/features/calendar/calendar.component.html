@@ -302,6 +302,16 @@
             @if (entry.description) {
               <span class="truncate text-xs text-content-faint">{{ entry.description }}</span>
             }
+            @if (editable(entry)) {
+              <button
+                type="button"
+                (click)="openEdit(entry)"
+                [attr.aria-label]="entry.title + ' bearbeiten'"
+                class="ml-auto shrink-0 cursor-pointer rounded-md border border-border bg-transparent px-2 py-0.5 text-xs text-content hover:bg-surface-sunken"
+              >
+                Bearbeiten
+              </button>
+            }
           </li>
         }
       </ul>
@@ -356,6 +366,7 @@
     [people]="people()"
     [functions]="functions()"
     [productions]="productions()"
+    [edit]="editing()"
     (saved)="afterSave()"
     (closed)="closeDialog()"
   />

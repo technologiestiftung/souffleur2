@@ -17,7 +17,8 @@ import { Resource, ResourcesService } from '../../core/resources.service';
 import { ActionsRegistry } from '../../shell/actions.registry';
 import { DialogComponent } from '../../shared/dialog.component';
 import { MetricStripComponent } from '../../shared/metric-strip.component';
-import { EventDialogComponent } from './event-dialog.component';
+import { EventDialogComponent, isEditable } from './event-dialog.component';
+import { AuthService } from '../../core/auth.service';
 import { MonthViewComponent } from './month-view.component';
 import { TimeGridComponent } from './time-grid.component';
 import { YearGridComponent } from './year-grid.component';
@@ -80,6 +81,13 @@ export class CalendarComponent implements OnInit {
   private readonly peopleList = inject(PeopleService);
   private readonly productionList = inject(ProductionsService);
   private readonly actions = inject(ActionsRegistry);
+  private readonly auth = inject(AuthService);
+
+  /** Planen darf, wer das Recht hat -- sonst steht kein Knopf da, der nur abgewiesen würde. */
+  protected readonly canPlan = computed(() => this.auth.can('CalendarPlan'));
+
+  /** Der Termin, der gerade im Bogen bearbeitet wird. */
+  protected readonly editing = signal<Occurrence | null>(null);
 
   protected readonly spans = SPANS;
   protected readonly loading = this.calendar.loading;
@@ -441,15 +449,28 @@ export class CalendarComponent implements OnInit {
   }
 
   protected openDialog(date: string): void {
+    this.editing.set(null);
     this.dialogDate.set(date);
+  }
+
+  /** Einen Termin aus dem Tagesfenster heraus bearbeiten. */
+  protected openEdit(entry: Occurrence): void {
+    this.editing.set(entry);
+    this.dialogDate.set(entry.localDate);
+  }
+
+  protected editable(entry: Occurrence): boolean {
+    return this.canPlan() && isEditable(entry);
   }
 
   protected closeDialog(): void {
     this.dialogDate.set(null);
+    this.editing.set(null);
   }
 
   protected async afterSave(): Promise<void> {
     this.dialogDate.set(null);
+    this.editing.set(null);
 
     // Nur neu laden, kein Fenster aufreißen: Wer aus dem Tagesfenster heraus
     // angelegt hat, steht noch darin und sieht den neuen Termin dort; wer aus
