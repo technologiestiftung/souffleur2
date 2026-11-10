@@ -188,7 +188,9 @@ public static class AccessEndpoints
         {
             antworten.Add(new UserResponse(
                 user.Id, user.DisplayName, user.Email, user.IsActive,
-                [.. await admin.DirectRolesAsync(user.Id)]));
+                [.. await admin.DirectRolesAsync(user.Id)],
+                HasPassword: user.PasswordHash is not null,
+                user.LastLoginAt));
         }
 
         return TypedResults.Ok(antworten);
@@ -253,7 +255,10 @@ public record GroupRequest(
 public record GroupResponse(
     Guid Id, string Name, string? Note, bool IsActive, Guid[] RoleIds, Guid[] MemberIds);
 
-public record UserResponse(Guid Id, string Name, string? Email, bool IsActive, Guid[] RoleIds);
+/// <param name="HasPassword">Ohne Passwort ist jemand eingeladen, hat den Link aber noch nicht benutzt.</param>
+public record UserResponse(
+    Guid Id, string Name, string? Email, bool IsActive, Guid[] RoleIds,
+    bool HasPassword = true, DateTimeOffset? LastLoginAt = null);
 
 public record UserRolesRequest(Guid[]? RoleIds);
 

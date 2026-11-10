@@ -42,6 +42,25 @@ export interface AccessUser {
 
   /** Nur die unmittelbar vergebenen -- die aus Gruppen stehen bei den Gruppen. */
   roleIds: string[];
+
+  /** Ohne Passwort: eingeladen, der Link ist noch nicht benutzt. */
+  hasPassword: boolean;
+  lastLoginAt: string | null;
+}
+
+export interface NewUser {
+  givenName: string;
+  surname: string;
+  email: string;
+  roleIds: string[];
+}
+
+/** Ein Einladungslink. `mailed` sagt, ob er schon per Mail hinaus ist. */
+export interface Invitation {
+  userId: string;
+  link: string;
+  mailed: boolean;
+  validUntil: string;
 }
 
 export interface RoleInput {
@@ -108,5 +127,19 @@ export class AccessService {
 
   async setUserRoles(id: string, roleIds: string[]): Promise<void> {
     await firstValueFrom(this.http.put(`/api/access/users/${id}/roles`, { roleIds }));
+  }
+
+  /** Ein Konto anlegen -- ohne Passwort, das setzt die Person über den Link. */
+  createUser(input: NewUser): Promise<Invitation> {
+    return firstValueFrom(this.http.post<Invitation>('/api/access/users', input));
+  }
+
+  /** Einen neuen Link; der alte gilt danach nicht mehr. */
+  inviteAgain(id: string): Promise<Invitation> {
+    return firstValueFrom(this.http.post<Invitation>(`/api/access/users/${id}/invitation`, {}));
+  }
+
+  async setActive(id: string, isActive: boolean): Promise<void> {
+    await firstValueFrom(this.http.put(`/api/access/users/${id}/active`, { isActive }));
   }
 }
