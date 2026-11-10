@@ -100,7 +100,7 @@
                 </thead>
                 <tbody>
                   @for (row of rows; track $index) {
-                    <tr class="border-t border-border" [class.opacity-50]="row.lage !== 'neu'">
+                    <tr class="border-t border-border" [class.gedimmt]="row.lage !== 'neu'">
                       <td class="px-2 py-1 tabular">{{ row.number || '—' }}</td>
                       <td class="px-2 py-1">{{ row.name || '—' }}</td>
                       <td class="px-2 py-1">
@@ -209,7 +209,7 @@
         </thead>
         <tbody>
           @for (account of shown(); track account.id) {
-            <tr class="border-b border-border" [class.opacity-50]="!account.isActive">
+            <tr class="border-b border-border" [class.gedimmt]="!account.isActive">
               <td class="py-1.5 tabular">{{ account.number }}</td>
               <td class="py-1.5">
                 {{ account.name }}

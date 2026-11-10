@@ -15,7 +15,7 @@
         <button
           type="button"
           (click)="dayPicked.emit(column.date)"
-          [attr.aria-label]="'Tag ' + column.date + ' zeigen'"
+          [attr.aria-label]="'Tag ' + column.date + ' zeigen, ' + column.weekday + ' ' + column.number"
           class="cursor-pointer border-0 bg-transparent p-0 text-sm"
           [class.font-semibold]="column.isToday"
           [class.text-brand]="column.isToday"
@@ -46,7 +46,7 @@
               [style.border-left-color]="accent(entry.categoryColor)"
               [style.background]="wash(entry.categoryColor)"
               [class.line-through]="entry.status === 3"
-              [class.opacity-55]="entry.status === 3"
+              [class.gedimmt]="entry.status === 3"
             >
               {{ entry.title }}
             </button>
@@ -118,7 +118,7 @@
               [style.border-left-color]="accent(item.entry.categoryColor)"
               [style.background]="wash(item.entry.categoryColor)"
               [class.line-through]="item.entry.status === 3"
-              [class.opacity-60]="item.entry.status === 3"
+              [class.gedimmt]="item.entry.status === 3"
               [class.italic]="item.entry.status === 1"
             >
               <span class="block truncate font-medium">

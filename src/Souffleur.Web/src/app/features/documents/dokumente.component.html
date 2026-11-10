@@ -78,11 +78,14 @@
         <tr class="border-b border-border align-top">
           <td class="py-2 pr-3">
             <div class="flex gap-3">
+              <!-- Dasselbe wie der Name daneben -- für Tastatur und Screenreader
+                   einmal genügt, sonst steht jedes Dokument zweimal da. -->
               <button
                 type="button"
                 (click)="ansehen(doc)"
+                tabindex="-1"
+                aria-hidden="true"
                 class="cursor-pointer rounded-md border-0 bg-transparent p-0 hover:opacity-80"
-                [attr.aria-label]="doc.name + ' ansehen'"
               >
                 <souffleur-vorschaubild [doc]="doc" />
               </button>

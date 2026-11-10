@@ -20,18 +20,23 @@
   --color-border-strong: #c9c0b7;
 
   --color-content: #2b2724;
-  --color-content-muted: #6e6259;
-  --color-content-faint: #8a7f75;
+  /*
+    Beide Abstufungen halten auf jeder Fläche mindestens 4,5:1 (WCAG AA).
+    Vorher lag „faint" auf Weiß bei 3,9:1 -- schön leise, aber für viele nicht
+    lesbar. Die Browsertests messen das jetzt mit axe-core nach.
+  */
+  --color-content-muted: #60554d;
+  --color-content-faint: #6e665e;
 
   --color-brand: #6b2c45;
   --color-brand-hover: #5a2439;
   --color-brand-contrast: #ffffff;
   --color-brand-wash: #f0e7ec;
 
-  --color-accent: #a85e0e;
+  --color-accent: #9c570d;
   --color-accent-wash: #fdf4e6;
 
-  --color-positive: #17876b;
+  --color-positive: #14755d;
   --color-positive-wash: #dcefe8;
   --color-critical: #a3301f;
   --color-critical-wash: #fbe9e6;
@@ -74,7 +79,7 @@
 
     --color-content: #f2ede7;
     --color-content-muted: #b0a59a;
-    --color-content-faint: #8a8078;
+    --color-content-faint: #9a928b;
 
     --color-brand: #d4799b;
     --color-brand-hover: #e295b1;
@@ -96,6 +101,18 @@
     --color-chart-4: #3f84d4;
     --color-chart-5: #cf6a5f;
     --color-chart-6: #8e7cdc;
+  }
+
+  /*
+    Gedimmt: stillgelegt, erledigt, abgesagt, außerhalb des Monats. Über die
+    Farbe statt über Deckkraft -- opacity senkte den Kontrast unter 4,5:1, egal
+    welcher Ton darunter lag. „faint" hält diese Grenze auf jeder Fläche. Die
+    Farbe ist nie der einzige Hinweis: Dazu gehört immer ein Wort oder ein
+    Durchstreichen.
+  */
+  .gedimmt,
+  .gedimmt * {
+    color: var(--color-content-faint) !important;
   }
 
   html {

@@ -82,6 +82,10 @@ Es gibt sie, weil ein Startfehler in Angular nur eine weiße Seite erzeugt: Der
 Server antwortet mit HTTP 200, die Datei ist vollständig, und trotzdem sieht
 niemand etwas. Zwei echte Fehler sind ihnen schon aufgefallen.
 
+Dazu misst `e2e/barrierefreiheit.spec.ts` mit axe-core die Anmeldung und alle
+Hauptseiten nach WCAG 2.1 AA, im hellen und im dunklen Thema. Was erst nach
+einem Klick erscheint — Bögen, Fenster, Menüs —, deckt das noch nicht ab.
+
 Nach einer Änderung am Datenmodell:
 
 ```bash
@@ -135,6 +139,9 @@ Open-Source-Projekte ausnimmt. Die Bibliothek ist eine reine Test-Abhängigkeit 
 nie ausgeliefert. Sollte das je stören, ist
 `AwesomeAssertions` (Apache-2.0, Fork von Version 7) der Ersatz mit identischer
 Syntax.
+
+Ebenso **axe-core** (`@axe-core/playwright`, MPL-2.0): nur in den Browsertests,
+nie ausgeliefert.
 
 ## Mitwirken
 

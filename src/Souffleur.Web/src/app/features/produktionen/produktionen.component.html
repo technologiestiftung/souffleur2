@@ -658,7 +658,7 @@
                 }
                 <ul class="m-0 list-none space-y-0.5 p-0 text-sm">
                   @for (task of o.tasks; track task.id) {
-                    <li class="flex items-center gap-2" [class.opacity-60]="!task.isOpen">
+                    <li class="flex items-center gap-2" [class.gedimmt]="!task.isOpen">
                       <span
                         class="size-2 shrink-0 rounded-full"
                         [style.background]="task.categoryColor ?? 'var(--color-border-strong)'"
