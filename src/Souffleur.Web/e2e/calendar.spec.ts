@@ -199,7 +199,7 @@ test('ein Tag aus dem Jahresraster lässt sich im Tag öffnen', async ({ page })
   await page.goto('/kalender');
 
   // Im Jahresraster einen Tag wählen -- der Tag öffnet sich als Fenster.
-  await page.getByRole('button', { name: /^Tag \d{4}-\d{2}-\d{2} zeigen$/ }).first().click();
+  await page.getByRole('button', { name: /^Tag \d{4}-\d{2}-\d{2} zeigen/ }).first().click();
   const fenster = page.getByRole('dialog');
   await expect(fenster).toBeVisible();
   await expect(fenster.getByRole('button', { name: 'Im Tag öffnen' })).toBeVisible();
