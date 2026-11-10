@@ -42,7 +42,7 @@ public class AccountingApiTests(SouffleurApiFactory factory) : IClassFixture<Sou
         HttpClient client = await SignedInAsync();
         // Acht Zeichen, nicht vier: Die Kontonummer muss eindeutig sein, und bei
         // vier Stellen kollidieren parallel laufende Tests gelegentlich.
-        string suffix = Guid.NewGuid().ToString("N")[..8];
+        string suffix = Random.Shared.Next(10_000_000, 99_999_999).ToString();
 
         // Zwei Konten anlegen, wie das Steuerbüro sie vorgibt.
         Guid rentId = await CreateAccountAsync(client, $"42{suffix}", "Miete", type: 5);
@@ -94,7 +94,7 @@ public class AccountingApiTests(SouffleurApiFactory factory) : IClassFixture<Sou
         HttpClient client = await SignedInAsync();
         // Acht Zeichen, nicht vier: Die Kontonummer muss eindeutig sein, und bei
         // vier Stellen kollidieren parallel laufende Tests gelegentlich.
-        string suffix = Guid.NewGuid().ToString("N")[..8];
+        string suffix = Random.Shared.Next(10_000_000, 99_999_999).ToString();
         Guid a = await CreateAccountAsync(client, $"43{suffix}", "Gagen", type: 5);
         Guid b = await CreateAccountAsync(client, $"13{suffix}", "Kasse", type: 1);
 
