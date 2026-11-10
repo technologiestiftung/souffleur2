@@ -163,6 +163,51 @@ public class ConversationTests : AccountingTestBase
     }
 
     [Fact]
+    public async Task Eine_Nachricht_laesst_sich_aendern_und_traegt_es()
+    {
+        await AddUsersAsync();
+        Conversation channel = await As(anja).CreateChannelAsync("Technik");
+        Message message = await As(anja).PostAsync(channel.Id, "Probe um 10.");
+
+        Message edited = await As(anja).EditAsync(message.Id, "Probe um 11.");
+
+        edited.Text.Should().Be("Probe um 11.");
+        edited.EditedAt.Should().NotBeNull("wer schon gelesen hat, soll sehen, dass sich etwas geaendert hat");
+    }
+
+    [Fact]
+    public async Task Aendern_kann_nur_wer_geschrieben_hat_und_nicht_ins_Leere()
+    {
+        await AddUsersAsync();
+        Conversation channel = await As(anja).CreateChannelAsync("Technik");
+        Message message = await As(anja).PostAsync(channel.Id, "Meins.");
+
+        await As(wolf).Invoking(c => c.EditAsync(message.Id, "Seins."))
+            .Should().ThrowAsync<ConversationException>();
+        await As(anja).Invoking(c => c.EditAsync(message.Id, "   "))
+            .Should().ThrowAsync<ConversationException>();
+
+        Context.ChangeTracker.Clear();
+        (await Context.Messages.SingleAsync(m => m.Id == message.Id)).Text.Should().Be("Meins.");
+    }
+
+    [Fact]
+    public async Task Geantwortet_wird_nur_innerhalb_derselben_Unterhaltung()
+    {
+        await AddUsersAsync();
+        Conversation geheim = await As(anja).CreateChannelAsync("Vorstand", isPrivate: true);
+        Message vertraulich = await As(anja).PostAsync(geheim.Id, "Vertraulich.");
+        Conversation offen = await As(wolf).CreateChannelAsync("Foyer");
+
+        Message antwort = await As(wolf).PostAsync(offen.Id, "Erstens.");
+        (await As(wolf).PostAsync(offen.Id, "Zweitens.", inReplyToId: antwort.Id))
+            .InReplyToId.Should().Be(antwort.Id);
+
+        await As(wolf).Invoking(c => c.PostAsync(offen.Id, "Zitat", inReplyToId: vertraulich.Id))
+            .Should().ThrowAsync<ConversationException>();
+    }
+
+    [Fact]
     public async Task Ungelesenes_zaehlt_nur_fremde_Nachrichten()
     {
         await AddUsersAsync();
@@ -239,6 +284,44 @@ public class ConversationTests : AccountingTestBase
 
         // Noch einmal aufnehmen aendert nichts.
         (await As(anja).AddParticipantsAsync(channel.Id, [wolf], null)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Ein_Kanal_fuer_eine_Gruppe_folgt_ihren_Mitgliedern()
+    {
+        await AddUsersAsync();
+        Guid technik = Guid.CreateVersion7();
+        Context.Groups.Add(new Group { Id = technik, Name = "Technik" });
+        await Context.SaveChangesAsync();
+
+        Conversation channel = await As(anja).CreateChannelAsync(
+            "Technik", isPrivate: true, groupId: technik);
+        (await As(wolf).Visible().CountAsync()).Should().Be(0, "Wolf ist noch nicht in der Gruppe");
+
+        // Wolf kommt in die Gruppe -- und ist damit im Kanal.
+        Context.GroupMembers.Add(new GroupMember { GroupId = technik, UserId = wolf });
+        await Context.SaveChangesAsync();
+        await GroupChannels.SyncAsync(Context, technik, DateTimeOffset.UtcNow);
+        (await As(wolf).Visible().CountAsync(c => c.Id == channel.Id)).Should().Be(1);
+
+        // Er geht aus der Gruppe -- und sieht den geschlossenen Kanal nicht mehr.
+        await Context.GroupMembers.Where(m => m.GroupId == technik).ExecuteDeleteAsync();
+        await GroupChannels.SyncAsync(Context, technik, DateTimeOffset.UtcNow);
+        Context.ChangeTracker.Clear();
+        (await As(wolf).Visible().CountAsync(c => c.Id == channel.Id)).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task In_einem_Gruppenkanal_nimmt_man_niemanden_von_Hand_auf()
+    {
+        await AddUsersAsync();
+        Guid technik = Guid.CreateVersion7();
+        Context.Groups.Add(new Group { Id = technik, Name = "Technik" });
+        await Context.SaveChangesAsync();
+        Conversation channel = await As(anja).CreateChannelAsync("Technik", groupId: technik);
+
+        await As(anja).Invoking(c => c.AddParticipantsAsync(channel.Id, [wolf], null))
+            .Should().ThrowAsync<ConversationException>();
     }
 
     [Fact]

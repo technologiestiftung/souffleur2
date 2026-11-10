@@ -32,18 +32,35 @@ public class ConversationService(
         string? topic = null,
         bool isPrivate = false,
         IReadOnlyList<Guid>? participants = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? groupId = null)
     {
+        if (groupId is { } id && !await context.Groups.AnyAsync(g => g.Id == id && g.IsActive, cancellationToken))
+        {
+            throw new ConversationException(["Diese Gruppe gibt es nicht."]);
+        }
+
         var conversation = new Conversation
         {
             Kind = ConversationKind.Channel,
             Name = name.Trim(),
             Topic = topic,
             IsPrivate = isPrivate,
+            GroupId = groupId,
         };
 
-        AddParticipants(conversation, [Me, .. participants ?? []]);
-        return await AddAsync(conversation, cancellationToken);
+        // Bei einem Kanal fuer eine Gruppe sind genau ihre Mitglieder drin --
+        // auch wer anlegt nur, wenn er dazugehoert. Die Verwaltung legt so einen
+        // Kanal fuer die Technik an, ohne selbst mitzulesen.
+        AddParticipants(conversation, groupId is null ? [Me, .. participants ?? []] : []);
+        Conversation created = await AddAsync(conversation, cancellationToken);
+
+        if (groupId is { } gruppe)
+        {
+            await GroupChannels.SyncAsync(context, gruppe, timeProvider.GetUtcNow(), cancellationToken);
+        }
+
+        return created;
     }
 
     /// <summary>
@@ -120,6 +137,17 @@ public class ConversationService(
                 ["Diese Unterhaltung ist archiviert und nimmt nichts Neues mehr auf."]);
         }
 
+        // Geantwortet wird nur auf eine Nachricht derselben Unterhaltung. Sonst
+        // liesse sich ueber ihre Id eine Nachricht aus einem geschlossenen
+        // Kanal anzitieren, den man gar nicht sieht.
+        if (inReplyToId is { } replyTo
+            && !await context.Messages.AnyAsync(
+                m => m.Id == replyTo && m.ConversationId == conversationId, cancellationToken))
+        {
+            throw new ConversationException(
+                ["Die Nachricht, auf die geantwortet wird, steht nicht in dieser Unterhaltung."]);
+        }
+
         DateTimeOffset now = timeProvider.GetUtcNow();
 
         var message = new Message
@@ -154,6 +182,48 @@ public class ConversationService(
         {
             mine.ReadUpTo = now;
             mine.LeftAt = null;
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+        return message;
+    }
+
+    /// <summary>
+    /// Den eigenen Text nachtraeglich aendern. Die Nachricht traegt danach
+    /// „bearbeitet“ -- wer sie schon gelesen hat, soll sehen, dass sich etwas
+    /// geaendert hat. Die Erwaehnungen bleiben, wie sie beim Senden waren: Eine
+    /// Glocke, die schon geklungen hat, laesst sich nicht zuruecknehmen.
+    /// </summary>
+    public async Task<Message> EditAsync(Guid messageId, string text, CancellationToken cancellationToken = default)
+    {
+        Message message = await context.Messages
+            .Include(m => m.Author)
+            .FirstOrDefaultAsync(m => m.Id == messageId, cancellationToken)
+            ?? throw new ConversationException(["Diese Nachricht gibt es nicht."]);
+
+        if (message.AuthorId != Me)
+        {
+            throw new ConversationException(["Ändern kann nur, wer geschrieben hat."]);
+        }
+        if (message.IsRetracted)
+        {
+            throw new ConversationException(["Eine zurückgezogene Nachricht lässt sich nicht ändern."]);
+        }
+
+        Conversation conversation = await LoadVisibleAsync(message.ConversationId, cancellationToken);
+        if (conversation.IsArchived)
+        {
+            throw new ConversationException(
+                ["Diese Unterhaltung ist archiviert und nimmt nichts Neues mehr auf."]);
+        }
+
+        string before = message.Text;
+        message.Edit(text.Trim(), timeProvider.GetUtcNow());
+        IReadOnlyList<string> problems = message.Validate();
+        if (problems.Count > 0)
+        {
+            message.Text = before;
+            throw new ConversationException(problems);
         }
 
         await context.SaveChangesAsync(cancellationToken);
@@ -299,6 +369,12 @@ public class ConversationService(
                 ["Eine Direktnachricht bleibt zu zweit. Für mehrere legt man einen Kanal an."]);
         }
 
+        if (conversation.GroupId is not null)
+        {
+            throw new ConversationException(
+                ["Dieser Kanal folgt seiner Gruppe. Wer dazukommen soll, kommt in die Gruppe (Einstellungen → Zugänge)."]);
+        }
+
         List<Guid> wanted = [.. userIds ?? []];
         if (groupIds is { Count: > 0 })
         {
@@ -349,6 +425,14 @@ public class ConversationService(
         if (who != Me && conversation.Kind == ConversationKind.Direct)
         {
             throw new ConversationException(["Aus einer Direktnachricht nimmt man niemanden heraus."]);
+        }
+
+        // Herausnehmen geht ueber die Gruppe. Selbst gehen geht -- bis die
+        // Gruppe sich das naechste Mal aendert; stumm schalten haelt laenger.
+        if (who != Me && conversation.GroupId is not null)
+        {
+            throw new ConversationException(
+                ["Dieser Kanal folgt seiner Gruppe. Wer gehen soll, verlässt die Gruppe."]);
         }
 
         ConversationParticipant? participant = conversation.Participants

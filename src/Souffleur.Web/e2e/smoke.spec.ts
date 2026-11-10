@@ -127,7 +127,7 @@ test('eine Nachricht lässt sich schreiben und erscheint sofort', async ({ page 
   await expect(chat.getByText('Die Stromrechnung hat zwei Zeiträume drin.')).toBeVisible();
 
   const text = `Probe ${Date.now()}`;
-  await chat.getByLabel('Nachricht').fill(text);
+  await chat.getByLabel('Nachricht', { exact: true }).fill(text);
   await chat.getByRole('button', { name: 'Senden' }).click();
 
   await expect(chat.getByText(text)).toBeVisible();
