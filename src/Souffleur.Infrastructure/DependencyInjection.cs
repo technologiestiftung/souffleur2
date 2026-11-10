@@ -83,12 +83,10 @@ public static class DependencyInjection
         services.AddScoped<NotificationService>();
         services.TryAddScoped<INotificationPusher, NoPusher>();
         services.AddScoped<IMailSender, SmtpMailSender>();
-        services.AddHostedService<NotificationMailer>();
 
         // Das Postfach des Hauses: senden ueber den Mailer oben, lesen per IMAP.
         services.AddSingleton<IMailbox, ImapMailbox>();
         services.AddScoped<MailService>();
-        services.AddHostedService<MailboxPoller>();
 
         services.AddScoped<JournalService>();
         services.AddScoped<VoucherService>();
@@ -123,8 +121,12 @@ public static class DependencyInjection
                 .BindConfiguration(DatevOptions.Section);
         services.AddHostedService<DatabaseInitializerService>();
 
-        // Nach dem Initializer: Das Einlesen fragt Tabellen ab, die erst die
-        // Migrationen anlegen.
+        // Nach dem Initializer: Hosted Services starten in der Reihenfolge der
+        // Registrierung, und diese drei fragen Tabellen ab, die erst die
+        // Migrationen anlegen. Vorher registriert, meldete der Mailer beim
+        // ersten Start auf leerer Datenbank "no such table".
+        services.AddHostedService<NotificationMailer>();
+        services.AddHostedService<MailboxPoller>();
         services.AddHostedService<FolderScanner>();
 
         return services;
