@@ -1292,6 +1292,9 @@ namespace Souffleur.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("GroupId")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsPrivate")
                         .HasColumnType("INTEGER");
 
@@ -1322,6 +1325,8 @@ namespace Souffleur.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GroupId");
 
                     b.HasIndex("LastMessageAt");
 

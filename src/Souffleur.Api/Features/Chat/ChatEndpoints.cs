@@ -35,6 +35,7 @@ public static class ChatEndpoints
         group.MapPost("/conversations/{id:guid}/unarchive", UnarchiveAsync);
         group.MapDelete("/conversations/{id:guid}", DeleteAsync);
         group.MapPost("/messages/{id:guid}/retract", RetractAsync);
+        group.MapPut("/messages/{id:guid}", EditAsync);
 
         // Wer dabei ist: Gruppenchats entstehen, indem man Personen oder eine
         // ganze Gruppe aufnimmt; Verlassen und Herausnehmen laufen über
@@ -195,7 +196,7 @@ public static class ChatEndpoints
         try
         {
             Conversation created = await conversations.CreateChannelAsync(
-                request.Name, request.Topic, request.IsPrivate, request.Participants);
+                request.Name, request.Topic, request.IsPrivate, request.Participants, groupId: request.GroupId);
 
             return TypedResults.Created(
                 $"/api/chat/conversations/{created.Id}", ConversationResponse.From(created, 0));
@@ -307,6 +308,28 @@ public static class ChatEndpoints
         await Ausloeser.ErwaehntAsync(glocke, erwaehnt, [], wo, auszug, id);
     }
 
+    private static async Task<IResult> EditAsync(
+        Guid id,
+        [FromBody] EditMessageRequest request,
+        ConversationService conversations,
+        IHubContext<ChatHub> hub)
+    {
+        Message message;
+        try
+        {
+            message = await conversations.EditAsync(id, request.Text ?? string.Empty);
+        }
+        catch (ConversationException exception)
+        {
+            return Rejected(exception);
+        }
+
+        // Nur an die, die die Unterhaltung offen haben -- wie beim Senden.
+        await hub.Clients.Group(ChatHub.GroupOf(message.ConversationId))
+            .SendAsync("messageEdited", MessageResponse.From(message));
+        return TypedResults.Ok(MessageResponse.From(message));
+    }
+
     private static async Task<IResult> RetractAsync(
         Guid id,
         ConversationService conversations,
@@ -404,11 +427,13 @@ public static class ChatEndpoints
             title: "Die Nachricht wurde nicht angenommen.");
 }
 
+/// <param name="GroupId">Ein Kanal fuer eine Gruppe: Ihre Mitglieder sind drin, auch die spaeteren.</param>
 public record ChannelRequest(
     string Name,
     string? Topic = null,
     bool IsPrivate = false,
-    IReadOnlyList<Guid>? Participants = null);
+    IReadOnlyList<Guid>? Participants = null,
+    Guid? GroupId = null);
 
 /// <param name="GroupMentions">Erwaehnte Gruppen -- „@Technik" meint alle, die drin sind.</param>
 public record MessageRequest(
@@ -440,7 +465,8 @@ public record ConversationResponse(
     DateTimeOffset? LastMessageAt,
     int Unread,
     IReadOnlyList<PersonResponse> Participants,
-    Guid? CreatedBy)
+    Guid? CreatedBy,
+    Guid? GroupId = null)
 {
     public static ConversationResponse From(Conversation c, int unread) => new(
         c.Id, c.Kind, c.Name, c.Topic, c.SubjectType, c.SubjectType.Label(), c.SubjectId,
@@ -448,8 +474,10 @@ public record ConversationResponse(
         [.. c.Participants
             .Where(p => p.LeftAt == null && p.User is not null)
             .Select(p => new PersonResponse(p.UserId, p.User.DisplayName))],
-        c.CreatedBy);
+        c.CreatedBy, c.GroupId);
 }
+
+public record EditMessageRequest(string? Text);
 
 public record MessageResponse(
     Guid Id,

@@ -15,6 +15,7 @@ import { filter } from 'rxjs/operators';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../core/auth.service';
 import {
+  ChatMessage,
   ChatService,
   Conversation,
   ConversationKind,
@@ -102,6 +103,15 @@ export class ChatSidebarComponent {
   protected readonly draft = signal('');
   protected readonly newChannel = signal('');
   protected readonly newChannelPrivate = signal(false);
+  /** Ein Kanal für eine Gruppe: ihre Mitglieder sind drin, auch die späteren. */
+  protected readonly newChannelGroup = signal('');
+
+  /** Worauf die nächste Nachricht antwortet. */
+  protected readonly antwortAuf = signal<ChatMessage | null>(null);
+
+  /** Die eigene Nachricht, die gerade geändert wird, und ihr neuer Text. */
+  protected readonly aendert = signal<string | null>(null);
+  protected readonly aenderText = signal('');
   protected readonly showNewChannel = signal(false);
   protected readonly showArchived = signal(false);
   protected readonly sending = signal(false);
@@ -139,7 +149,14 @@ export class ChatSidebarComponent {
       .map((m) => m.name)
       .concat(this.auth.user()?.displayName ?? [])
       .sort((a, b) => b.length - a.length);
-    return this.chat.messages().map((m) => ({ ...m, teile: zerlegen(m.text, namen) }));
+    const nachId = new Map(this.chat.messages().map((m) => [m.id, m]));
+    return this.chat.messages().map((m) => ({
+      ...m,
+      teile: zerlegen(m.text, namen),
+      // Worauf geantwortet wird -- steht es nicht mehr in den geladenen, bleibt
+      // nur der Hinweis, dass es eine Antwort ist.
+      zitat: m.inReplyToId ? zitatVon(nachId.get(m.inReplyToId)) : null,
+    }));
   });
 
   protected get enabled(): boolean {
@@ -323,13 +340,49 @@ export class ChatSidebarComponent {
     this.sending.set(true);
     this.fehler.set('');
     try {
-      await this.chat.post(text, erwaehnt);
+      await this.chat.post(text, erwaehnt, this.antwortAuf()?.id ?? null);
       this.draft.set('');
       this.eingefuegt.set([]);
+      this.antwortAuf.set(null);
     } catch (e) {
       this.fehler.set(problem(e, 'Die Nachricht wurde nicht gesendet.'));
     } finally {
       this.sending.set(false);
+    }
+  }
+
+  // ── Antworten und Ändern ─────────────────────────────────────────────
+
+  protected antworten(message: ChatMessage): void {
+    this.antwortAuf.set(message);
+    document.getElementById('chat-draft')?.focus();
+  }
+
+  /** Zur Nachricht springen, auf die geantwortet wurde. */
+  protected zeigeOriginal(id: string): void {
+    const ziel = document.getElementById(`nachricht-${id}`);
+    ziel?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    ziel?.classList.add('ring-2', 'ring-brand');
+    setTimeout(() => ziel?.classList.remove('ring-2', 'ring-brand'), 1500);
+  }
+
+  protected beginneAendern(message: ChatMessage): void {
+    this.aendert.set(message.id);
+    this.aenderText.set(message.text);
+  }
+
+  protected async aenderungSpeichern(): Promise<void> {
+    const id = this.aendert();
+    const text = this.aenderText().trim();
+    if (!id || !text) {
+      return;
+    }
+    this.fehler.set('');
+    try {
+      await this.chat.edit(id, text);
+      this.aendert.set(null);
+    } catch (e) {
+      this.fehler.set(problem(e, 'Die Änderung wurde nicht gespeichert.'));
     }
   }
 
@@ -341,14 +394,29 @@ export class ChatSidebarComponent {
       return;
     }
 
-    const created = await this.chat.createChannel(name, this.newChannelPrivate());
+    const gruppe = this.newChannelGroup() || null;
+    const created = await this.chat.createChannel(name, this.newChannelPrivate(), gruppe);
     this.newChannel.set('');
     this.newChannelPrivate.set(false);
+    this.newChannelGroup.set('');
     this.showNewChannel.set(false);
+
+    // Ein Kanal für eine Gruppe hat seine Leute schon. Wer ihn anlegt, ohne
+    // selbst in der Gruppe zu sein, sieht einen geschlossenen danach nicht.
+    if (gruppe) {
+      if (this.chat.conversations().some((c) => c.id === created.id)) {
+        await this.chat.openConversation(created.id);
+      }
+      return;
+    }
 
     // Gleich die Frage, wer dabei sein soll -- ein Kanal allein ist keiner.
     await this.chat.openConversation(created.id);
     await this.zeigeTeilnehmer();
+  }
+
+  protected gruppeName(id: string | null): string {
+    return this.chat.groups().find((g) => g.id === id)?.name ?? 'eine Gruppe';
   }
 
   protected async direktAn(userId: string): Promise<void> {
@@ -505,4 +573,17 @@ function problem(e: unknown, sonst: string): string {
   const fehler = (e as { error?: { errors?: Record<string, string[]> } })?.error?.errors;
   const saetze = fehler ? Object.values(fehler).flat() : [];
   return saetze.length > 0 ? saetze.join(' ') : sonst;
+}
+
+/** Ein kurzer Auszug der Nachricht, auf die geantwortet wird. */
+function zitatVon(original: ChatMessage | undefined): { id: string | null; author: string; text: string } {
+  if (!original) {
+    return { id: null, author: '', text: 'Antwort auf eine ältere Nachricht' };
+  }
+  const text = original.isRetracted
+    ? 'zurückgezogen'
+    : original.text.length > 80
+      ? `${original.text.slice(0, 80)}…`
+      : original.text;
+  return { id: original.id, author: original.authorName, text };
 }

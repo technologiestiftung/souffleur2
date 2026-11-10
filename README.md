@@ -14,8 +14,8 @@ etwa einer Synology oder einem Mini-PC. Es gibt keinen zentralen Dienst.
 > **Status: Prototyp.** souffleur 2 entstand 2026 bei der Technologiestiftung
 > Berlin (kulturBdigital) und ist nicht fertig gebaut. Nicht alle Module und
 > Funktionen sind vollständig: Die Bankanbindung liest zum Beispiel nur
-> Kontoauszüge als Datei, der Chat kennt keine Antworten im Faden, und die
-> Ablage auf einer Synology ist an echter Hardware nicht erprobt. Was offen
+> Kontoauszüge als Datei, Krankmeldungen haben noch keine Löschfristen, und
+> die Ablage auf einer Synology ist an echter Hardware nicht erprobt. Was offen
 > ist, steht unter „Offen“ in [`CLAUDE.md`](CLAUDE.md).
 >
 > Für den produktiven Einsatz — besonders für die Buchhaltung — ist souffleur

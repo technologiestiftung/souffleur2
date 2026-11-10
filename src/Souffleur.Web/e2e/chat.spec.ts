@@ -57,7 +57,7 @@ test('ein @ bringt die Vorschlagsliste, und die Erwähnung landet bei Ben', asyn
   ).toBeTruthy();
 
   try {
-    const feld = aside.getByLabel('Nachricht');
+    const feld = aside.getByLabel('Nachricht', { exact: true });
     await feld.fill('Hallo @Be');
     const liste = aside.getByRole('listbox', { name: 'Erwähnen' });
     await expect(liste.getByRole('option', { name: 'Ben Schröder' })).toBeVisible();
@@ -176,7 +176,7 @@ test('ein Kanal wird archiviert, wiederhergestellt und zuletzt gelöscht', async
   await aside.getByRole('menuitem', { name: 'Archivieren' }).click();
 
   await expect(aside.getByText('Archiviert. Nimmt nichts Neues mehr auf.')).toBeVisible();
-  await expect(aside.getByLabel('Nachricht')).toHaveCount(0);
+  await expect(aside.getByLabel('Nachricht', { exact: true })).toHaveCount(0);
 
   // Zurück in der Liste steht der Kanal im Archiv, nicht mehr oben.
   await aside.getByRole('button', { name: new RegExp(`^${name}`) }).click();
@@ -185,7 +185,7 @@ test('ein Kanal wird archiviert, wiederhergestellt und zuletzt gelöscht', async
   await aside.getByRole('button', { name: new RegExp(`^${name}`) }).click();
 
   await aside.getByRole('button', { name: 'Wiederherstellen' }).first().click();
-  await expect(aside.getByLabel('Nachricht')).toBeVisible();
+  await expect(aside.getByLabel('Nachricht', { exact: true })).toBeVisible();
 
   // Löschen fragt nach -- und dann ist der Kanal weg.
   await menue.click();

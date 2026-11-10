@@ -19,6 +19,9 @@ public class ConversationConfiguration : IEntityTypeConfiguration<Conversation>
 
         builder.HasIndex(c => c.LastMessageAt);
 
+        // Fuer den Abgleich, wenn sich eine Gruppe aendert.
+        builder.HasIndex(c => c.GroupId);
+
         builder.HasMany(c => c.Participants)
                .WithOne(p => p.Conversation)
                .HasForeignKey(p => p.ConversationId)
