@@ -134,7 +134,7 @@ builder.Services.AddSignalR();
 builder.Services.Replace(ServiceDescriptor.Scoped<INotificationPusher, SignalRNotificationPusher>());
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("datenbank");
 
 WebApplication app = builder.Build();
 
