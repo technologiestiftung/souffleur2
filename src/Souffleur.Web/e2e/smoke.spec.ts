@@ -183,3 +183,22 @@ test('die Kontakte zeigen Rollen und fehlende Einwilligung', async ({ page }) =>
   await expect(page.getByText('Senatsverwaltung für Kultur')).toBeVisible();
   await expect(page.getByText('Druckerei Conrad')).toHaveCount(0);
 });
+
+test('ein zugeklappter Streifen klappt beim Überfahren auf, auch angepinnt', async ({ page }) => {
+  await signIn(page);
+
+  // Rechts ist der Startzustand angepinnt und zugeklappt. Früher blieb der
+  // Streifen dann stumm, während links das Überfahren schon aufklappte.
+  const streifen = page.getByRole('complementary', { name: 'Kommunikation, zugeklappt' });
+  const chat = page.getByRole('complementary', { name: 'Kommunikation', exact: true });
+  await expect(streifen).toBeVisible();
+  await expect(chat).toHaveCount(0);
+
+  await streifen.hover();
+  await expect(chat).toBeVisible();
+
+  // Wer wieder geht, lässt sie zugehen -- nur hereingeschaut, nicht aufgeklappt.
+  await page.getByRole('heading', { level: 1 }).hover();
+  await expect(chat).toHaveCount(0);
+  await expect(streifen).toBeVisible();
+});
