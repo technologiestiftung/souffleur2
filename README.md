@@ -11,10 +11,17 @@ sich je Haus abschalten.
 Jedes Haus betreibt seine **eigene Installation auf der eigenen Hardware**,
 etwa einer Synology oder einem Mini-PC. Es gibt keinen zentralen Dienst.
 
-> **Status:** im Wesentlichen abgeschlossen. souffleur 2 entstand 2026 bei der
-> Technologiestiftung Berlin (kulturBdigital). Neue Funktionen sind nicht
-> geplant; Abhängigkeiten werden über Renovate aktuell gehalten. Der Code steht
-> unter MIT-Lizenz zur freien Weiterführung.
+> **Status: Prototyp.** souffleur 2 entstand 2026 bei der Technologiestiftung
+> Berlin (kulturBdigital) und ist nicht fertig gebaut. Nicht alle Module und
+> Funktionen sind vollständig: Konten lassen sich zum Beispiel noch nicht in der
+> Oberfläche anlegen, Termine nur anlegen und nicht bearbeiten, und der
+> Kontenplan hat keine eigene Ansicht. Was offen ist, steht unter „Offen“ in
+> [`CLAUDE.md`](CLAUDE.md).
+>
+> Für den produktiven Einsatz — besonders für die Buchhaltung — ist souffleur
+> ohne eigene Prüfung nicht gedacht. Neue Funktionen sind nicht geplant;
+> Abhängigkeiten werden über Renovate aktuell gehalten. Der Code steht unter
+> MIT-Lizenz zur freien Weiterführung.
 
 ## Stack
 
