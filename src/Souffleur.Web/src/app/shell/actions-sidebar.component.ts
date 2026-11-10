@@ -33,11 +33,11 @@ export class ActionsSidebarComponent {
 
   protected readonly open = computed(() => this.layout.actionsOpen());
 
-  /** Angepinnt braucht es den Streifen nur zugeklappt; gelöst steht er immer. */
-  protected readonly streifen = computed(() => !this.open() || !this.layout.actionsPinned());
+  /** Fest angedockt braucht es den Streifen nicht; sonst steht er immer. */
+  protected readonly streifen = computed(() => !this.layout.actionsDocked());
 
   /**
-   * Gelöst öffnet sich die Leiste schon, wenn die Maus auf den Streifen
+   * Zugeklappt öffnet sich die Leiste schon, wenn die Maus auf den Streifen
    * kommt, und schließt, wenn sie wieder geht -- mit kleiner Verzögerung,
    * damit ein Vorbeifahren nichts auslöst. Solange etwas in der Leiste
    * den Fokus hat, bleibt sie trotz Maus draußen offen: Wer gerade tippt,
@@ -45,7 +45,7 @@ export class ActionsSidebarComponent {
    */
   protected schweben(drin: boolean): void {
     clearTimeout(this.schwebt);
-    if (this.layout.actionsPinned()) {
+    if (this.layout.actionsDocked()) {
       return;
     }
     this.schwebt = setTimeout(

@@ -48,9 +48,9 @@ wer selbst handelt, bekommt keinen Hinweis.
 500 .NET-Tests, 104 Browsertests grün (09.11.2026). Auf 1280×720 fuellten die Kennzahlen die Personal-Seite, die Dienste-Liste
 (`flex-1 overflow-auto` unter `h-full`) bekam keine Hoehe und war nicht
 erreichbar. Je nachdem, ob die Kacheln vor dem Klick geladen waren, wackelte
-der Test. Behoben mit `min-h-96` am Scrollbereich. **Kontakte, Buchungen
-und Ticketing** haben denselben Aufbau und vermutlich dasselbe Problem auf
-kleinen Bildschirmen — noch nicht angefasst.
+der Test. Behoben mit `min-h-96` am Scrollbereich, ebenso Kontakte,
+Buchungen und Ticketing (10.11.2026). Neue Seiten mit Kennzahlen und Liste
+darunter brauchen dieselbe Mindesthöhe.
 
 Seit Anfang November dazugekommen:
 
@@ -152,9 +152,10 @@ Seit Anfang November dazugekommen:
 
 - **Seitenleisten** „Aktion" (links) und „Kommunikation" (rechts,
   `shell/actions-sidebar`, `shell/chat-sidebar`, Zustand in
-  `core/layout.service.ts`): angepinnt stehen sie neben dem Inhalt, gelöst
-  sind sie ein Streifen, der sich unter der Maus als Überlagerung aufschiebt
-  und nach Klick, Klick daneben oder Escape wieder schließt. Pin und
+  `core/layout.service.ts`): angepinnt und offen stehen sie neben dem Inhalt
+  (`…Docked`), sonst sind sie ein Streifen, der sich unter der Maus als
+  Überlagerung aufschiebt (`…Peek`, auch angepinnt) und nach Klick, Klick
+  daneben oder Escape wieder schließt. Pin und
   Aufgeklappt-Zustand am Browser (localStorage).
 - **E-Mail** in der Kommunikationsleiste unter dem Chat (`shell/mail-panel.
   component.ts`, `core/mail.service.ts`, Backend `Api/Features/Mail/`,
@@ -311,20 +312,12 @@ Seit Anfang November dazugekommen:
 
 ## Offen
 
-- **Gleiches Scroll-Problem wie Personal** (siehe Stand): Kontakte
-  (`contacts.component.html:420`), Buchungen (`journal.component.html:355`),
-  Ticketing (`ticketing.component.html:169`) haben `min-h-0 flex-1
-  overflow-auto` unter `h-full` — auf 1280×720 mit Kennzahlen vermutlich
-  unerreichbar. Bei Personal half `min-h-96`.
 - **Migrationen ohne Transaktion** (`AufgabenBeteiligteLesezeichen`,
   `AblageOrdner`): melden beim Start, dass ein Schritt ausserhalb einer
   Transaktion läuft (SQLite-Tabellenumbau). Ein Abbruch genau dann
   hinterliesse eine halbe Migration.
 - **Ablage auf einer echten Synology nicht erprobt**: DSM-ACLs gegen den
   Container-Benutzer, Zeitstempel über SMB, Papierkorb `#recycle/souffleur/`.
-- **Wackelt**: `vouchers.spec.ts` „der Prüflauf rechnet die Prüfwerte nach"
-  liest alle Belegdateien, während parallel Tests hochladen — lokal
-  gelegentlich rot.
 
 0. **Kontenplan in den Einstellungen**: Konten ansehen, anlegen, CSV vom
    Steuerbüro einlesen (`/api/accounts`, `/api/accounts/import` sind da).
@@ -341,11 +334,6 @@ Seit Anfang November dazugekommen:
 
 Älter, ebenfalls offen:
 
-- Beim ersten Start auf leerer Datenbank fragt `NotificationMailer` die
-  Tabelle `Notifications` ab, bevor die Migrationen durch sind -- ein
-  `fail` im Log, sonst folgenlos. Der Mailer sollte auf den Initializer
-  warten.
-- `/api/health` prüft die Datenbank nicht.
 - Fehlerprotokoll in der Datenbank mit Ansicht für die Verwaltung (braucht
   ADR: keine Nutzdaten). Litestream für die Sicherung. axe-core in die
   Browsertests, Kontraste messen.
