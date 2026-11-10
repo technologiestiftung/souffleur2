@@ -44,6 +44,18 @@ public class Conversation : Entity
     public bool IsPrivate { get; set; }
 
     /// <summary>
+    /// Ein Kanal, der einer Gruppe folgt: Wer in die Gruppe kommt, ist im
+    /// Kanal; wer geht, verlaesst ihn. Ohne Gruppe pflegt man die
+    /// Teilnehmer von Hand.
+    /// </summary>
+    /// <remarks>
+    /// Ohne Fremdschluessel: Eine Gruppe kann geloescht werden, der Kanal
+    /// bleibt dann mit den Leuten, die zuletzt drin waren. Und SQLite muesste
+    /// fuer einen neuen Fremdschluessel die ganze Tabelle umbauen.
+    /// </remarks>
+    public Guid? GroupId { get; set; }
+
+    /// <summary>
     /// Archiviert heißt: bleibt lesbar, nimmt aber nichts Neues mehr auf.
     /// Das ist der Regelweg. Gelöscht wird nur ein Kanal, und nur von dem,
     /// der ihn angelegt hat, oder der Verwaltung -- Direktnachrichten und
