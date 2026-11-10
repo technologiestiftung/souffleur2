@@ -1,0 +1,488 @@
+<div class="flex h-full flex-col p-6">
+  <header class="mb-4 flex items-baseline justify-between gap-4">
+    <div>
+      <h1 class="font-display text-2xl font-bold tracking-tight">Journal</h1>
+      <p class="mt-1 text-sm text-content-muted">
+        @if (!loading() && !blocked()) {
+          {{ entries().length }} Buchungen · {{ drafts() }} Entwürfe
+        }
+      </p>
+    </div>
+  </header>
+
+  <souffleur-metric-strip module="finanzen" class="mb-5 block shrink-0" />
+
+  @if (loading()) {
+    <p class="text-sm text-content-muted">Einen Moment…</p>
+  } @else if (blocked()) {
+    <div class="rounded-xl border border-border bg-surface-raised p-6">
+      <h2 class="text-base font-semibold">Finanzen sind in diesem Haus nicht eingeschaltet</h2>
+      <p class="mt-2 text-sm text-content-muted">
+        Module werden in den Einstellungen des Hauses an- und abgeschaltet.
+      </p>
+    </div>
+  } @else {
+    <div class="mb-3 flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        (click)="startBooking()"
+        class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover"
+      >
+        Buchung erfassen
+      </button>
+
+      <button
+        type="button"
+        (click)="startDatev()"
+        class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+      >
+        DATEV-Stapel
+      </button>
+    </div>
+
+    @if (problems().length) {
+      <souffleur-meldung class="mb-3" [texte]="problems()" />
+    }
+
+    @if (booking()) {
+      <souffleur-dialog
+        heading="Neue Buchung"
+        note="Jede Buchung braucht mindestens zwei Zeilen, deren Summen übereinstimmen"
+        size="weit"
+        (closed)="cancelBooking()"
+      >
+        <div class="flex flex-wrap items-end gap-3">
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Buchungsdatum</span>
+            <input
+              type="date"
+              [ngModel]="date()"
+              (ngModelChange)="date.set($event)"
+              aria-label="Buchungsdatum"
+              class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            />
+          </label>
+
+          <label class="block flex-1">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Buchungstext</span>
+            <input
+              type="text"
+              [ngModel]="description()"
+              (ngModelChange)="description.set($event)"
+              aria-label="Buchungstext"
+              class="w-full min-w-64 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            />
+          </label>
+
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Belegnummer</span>
+            <input
+              type="text"
+              [ngModel]="documentNumber()"
+              (ngModelChange)="documentNumber.set($event)"
+              aria-label="Belegnummer"
+              class="w-36 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            />
+          </label>
+        </div>
+
+        <table class="mb-2 w-full border-collapse text-sm">
+          <thead>
+            <tr class="text-left">
+              <th
+                scope="col"
+                class="w-58 pb-1 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Konto
+              </th>
+              <th
+                scope="col"
+                class="w-30 pb-1 text-right text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Soll
+              </th>
+              <th
+                scope="col"
+                class="w-30 pb-1 text-right text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Haben
+              </th>
+              <th
+                scope="col"
+                class="w-42 pb-1 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Kostenstelle
+              </th>
+              @if (needsSpheres()) {
+                <th
+                  scope="col"
+                  class="w-50 pb-1 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+                >
+                  Sphäre
+                </th>
+              }
+              <th
+                scope="col"
+                class="pb-1 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Zeilentext
+              </th>
+              <th scope="col" class="w-8 pb-1"><span class="sr-only">Zeile entfernen</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (line of lines(); track $index; let index = $index) {
+              <tr>
+                <td class="py-1 pr-2">
+                  <select
+                    [ngModel]="line.accountId"
+                    (ngModelChange)="patchLine(index, { accountId: $event })"
+                    aria-label="Konto"
+                    class="w-56 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+                  >
+                    <option value="">— Konto wählen —</option>
+                    @for (account of accounts(); track account.id) {
+                      <option [value]="account.id">{{ account.number }} {{ account.name }}</option>
+                    }
+                  </select>
+                </td>
+                <td class="py-1 pr-2">
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    [ngModel]="line.debit"
+                    (ngModelChange)="patchLine(index, { debit: $event })"
+                    aria-label="Soll"
+                    class="w-28 rounded-md border border-border bg-surface px-2 py-1.5 text-right font-mono text-sm text-content tabular"
+                  />
+                </td>
+                <td class="py-1 pr-2">
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    [ngModel]="line.credit"
+                    (ngModelChange)="patchLine(index, { credit: $event })"
+                    aria-label="Haben"
+                    class="w-28 rounded-md border border-border bg-surface px-2 py-1.5 text-right font-mono text-sm text-content tabular"
+                  />
+                </td>
+                <td class="py-1 pr-2">
+                  <select
+                    [ngModel]="line.costCenterId"
+                    (ngModelChange)="patchLine(index, { costCenterId: $event })"
+                    aria-label="Kostenstelle"
+                    class="w-40 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+                  >
+                    <option value="">—</option>
+                    @for (center of costCenters(); track center.id) {
+                      <option [value]="center.id">{{ center.number }} {{ center.name }}</option>
+                    }
+                  </select>
+                </td>
+                @if (needsSpheres()) {
+                  <td class="py-1 pr-2">
+                    <select
+                      [ngModel]="line.taxSphere"
+                      (ngModelChange)="patchLine(index, { taxSphere: $event })"
+                      aria-label="Steuerliche Sphäre"
+                      class="w-48 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+                    >
+                      <option value="">—</option>
+                      @for (sphere of spheres; track sphere.value) {
+                        <option [value]="sphere.value">{{ sphere.label }}</option>
+                      }
+                    </select>
+                  </td>
+                }
+                <td class="py-1 pr-2">
+                  <input
+                    type="text"
+                    [ngModel]="line.description"
+                    (ngModelChange)="patchLine(index, { description: $event })"
+                    aria-label="Zeilentext"
+                    class="w-full min-w-32 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+                  />
+                </td>
+                <td class="py-1">
+                  @if (lines().length > 2) {
+                    <button
+                      type="button"
+                      (click)="removeLine(index)"
+                      [attr.aria-label]="'Zeile ' + (index + 1) + ' entfernen'"
+                      class="cursor-pointer rounded-md border-0 bg-transparent px-1.5 py-1 text-content-faint hover:text-critical"
+                    >
+                      ✕
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <div class="mb-3 flex items-center gap-4 text-xs tabular">
+          <button
+            type="button"
+            (click)="addLine()"
+            class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+          >
+            Zeile hinzufügen
+          </button>
+
+          <span class="text-content-muted">
+            Soll
+            <strong class="font-mono text-content">
+              {{ draftTotals().debit | currency: 'EUR' : '' : '1.2-2' : 'de' }}
+            </strong>
+          </span>
+          <span class="text-content-muted">
+            Haben
+            <strong class="font-mono text-content">
+              {{ draftTotals().credit | currency: 'EUR' : '' : '1.2-2' : 'de' }}
+            </strong>
+          </span>
+
+          @if (balanced()) {
+            <span class="text-positive">geht auf</span>
+          } @else {
+            <span class="text-accent">geht noch nicht auf</span>
+          }
+        </div>
+
+        <p class="m-0 text-xs text-content-faint">
+          Festgeschrieben wird später und ausdrücklich — danach ist die Buchung unveränderlich.
+        </p>
+
+        <button
+          dialogActions
+          type="button"
+          (click)="cancelBooking()"
+          class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+        >
+          Abbrechen
+        </button>
+        <button
+          dialogActions
+          type="button"
+          (click)="saveBooking()"
+          [disabled]="busy()"
+          class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+        >
+          {{ busy() ? 'Wird angelegt …' : 'Als Entwurf anlegen' }}
+        </button>
+      </souffleur-dialog>
+    }
+
+    @if (datev()) {
+      <souffleur-dialog
+        heading="DATEV-Stapel erzeugen"
+        note="Der Export schreibt die enthaltenen Buchungen fest"
+        size="breit"
+        (closed)="closeDatev()"
+      >
+        <div class="flex flex-wrap items-end gap-3">
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">von</span>
+            <input
+              type="date"
+              [ngModel]="datevFrom()"
+              (ngModelChange)="datevFrom.set($event); loadPreview()"
+              aria-label="Zeitraum von"
+              class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            />
+          </label>
+
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">bis</span>
+            <input
+              type="date"
+              [ngModel]="datevTo()"
+              (ngModelChange)="datevTo.set($event); loadPreview()"
+              aria-label="Zeitraum bis"
+              class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            />
+          </label>
+
+          @if (preview(); as found) {
+            <p class="m-0 text-xs text-content-muted tabular">
+              {{ found.entryCount }} Buchungen ·
+              {{ found.debitTotal | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} ·
+              {{ found.alreadyCommitted }} bereits festgeschrieben
+            </p>
+          }
+        </div>
+
+        @if (preview(); as found) {
+          @if (found.problems.length) {
+            <ul
+              class="mb-3 list-none space-y-0.5 rounded-md bg-accent-wash p-3 text-xs text-accent"
+            >
+              @for (problem of found.problems; track $index) {
+                <li>{{ problem }}</li>
+              }
+            </ul>
+          }
+        }
+
+        <button
+          dialogActions
+          type="button"
+          (click)="closeDatev()"
+          class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+        >
+          Abbrechen
+        </button>
+        <button
+          dialogActions
+          type="button"
+          (click)="exportDatev()"
+          [disabled]="busy() || !preview()?.canExport"
+          class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+        >
+          Stapel herunterladen
+        </button>
+      </souffleur-dialog>
+    }
+
+    @if (!entries().length) {
+      <div class="rounded-xl border border-border bg-surface-raised p-6">
+        <h2 class="text-base font-semibold">Noch keine Buchung</h2>
+        <p class="mt-2 text-sm text-content-muted">
+          Jede Buchung braucht mindestens zwei Zeilen, deren Soll- und Habensummen übereinstimmen.
+        </p>
+      </div>
+    } @else {
+      <div class="min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-surface-raised">
+        <table class="w-full border-collapse text-sm">
+          <thead class="sticky top-0 bg-surface-sunken">
+            <tr class="border-b border-border text-left">
+              <th
+                scope="col"
+                class="w-14 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Nr.
+              </th>
+              <th
+                scope="col"
+                class="w-24 px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Datum
+              </th>
+              <th
+                scope="col"
+                class="px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Text
+              </th>
+              <th
+                scope="col"
+                class="w-20 px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Konto
+              </th>
+              <th
+                scope="col"
+                class="w-28 px-2 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Soll
+              </th>
+              <th
+                scope="col"
+                class="w-28 px-2 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Haben
+              </th>
+              <th
+                scope="col"
+                class="w-24 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Kostenst.
+              </th>
+            </tr>
+          </thead>
+          <tbody class="tabular">
+            @for (entry of entries(); track entry.id) {
+              @for (line of entry.lines; track line.id; let first = $first) {
+                <tr
+                  [attr.id]="first ? 'buchung-' + entry.id : null"
+                  class="border-b border-border/60"
+                  [class.bg-accent-wash]="!entry.isCommitted && first"
+                  [class.bg-brand-wash]="hervorgehoben() === entry.id"
+                >
+                  <td class="px-3 py-2 font-mono text-content-muted">
+                    @if (first) {
+                      {{ entry.number }}
+                    }
+                  </td>
+                  <td class="px-2 py-2">
+                    @if (first) {
+                      {{ entry.date | date: 'dd.MM.yy' }}
+                    }
+                  </td>
+                  <td class="px-2 py-2" [class.pl-6]="!first">
+                    @if (first) {
+                      {{ entry.description }}
+                      @if (!entry.isCommitted) {
+                        <span
+                          class="ml-1.5 rounded bg-accent-wash px-1.5 py-0.5 text-[11px] font-semibold text-accent"
+                          >Entwurf</span
+                        >
+                        <button
+                          type="button"
+                          (click)="commit(entry)"
+                          [disabled]="busy()"
+                          title="Danach ist die Buchung unveränderlich (§ 146 Abs. 4 AO)"
+                          class="ml-1.5 cursor-pointer rounded border border-border bg-transparent px-1.5 py-0.5 text-[11px] text-content-muted hover:text-content disabled:opacity-60"
+                        >
+                          festschreiben
+                        </button>
+                      }
+                      @if (entry.reversalOfId) {
+                        <span
+                          class="ml-1.5 rounded bg-critical-wash px-1.5 py-0.5 text-[11px] font-semibold text-critical"
+                          >Storno</span
+                        >
+                      }
+                    } @else {
+                      <span class="text-content-muted">{{ line.description ?? 'an' }}</span>
+                    }
+                  </td>
+                  <td class="px-2 py-2 font-mono" [title]="accountName(line.accountId)">
+                    {{ accountLabel(line.accountId) }}
+                  </td>
+                  <td class="px-2 py-2 text-right font-mono">
+                    @if (line.debit) {
+                      {{ line.debit | currency: 'EUR' : '' : '1.2-2' : 'de' }}
+                    } @else {
+                      <span class="text-content-faint">—</span>
+                    }
+                  </td>
+                  <td class="px-2 py-2 text-right font-mono">
+                    @if (line.credit) {
+                      {{ line.credit | currency: 'EUR' : '' : '1.2-2' : 'de' }}
+                    } @else {
+                      <span class="text-content-faint">—</span>
+                    }
+                  </td>
+                  <td class="px-3 py-2 text-content-muted">
+                    {{ costCenterLabel(line.costCenterId) }}
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="mt-3 flex justify-between text-sm text-content-muted">
+        <span>{{ entries().length }} Buchungen</span>
+        <span class="tabular">
+          Summe
+          <strong class="font-mono text-content">{{
+            debitTotal() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+          }}</strong>
+        </span>
+      </footer>
+    }
+  }
+</div>

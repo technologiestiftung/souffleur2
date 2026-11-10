@@ -1,0 +1,99 @@
+<!-- Mittig in der oberen Zeile, immer in voller Breite: Seit die Reiter
+     ihre eigene Zeile haben, muss sich die Suche nicht mehr klein machen. -->
+<label class="relative block w-full">
+  <span class="sr-only">Suchen in souffleur</span>
+  <span
+    class="pointer-events-none absolute inset-y-0 left-2.5 grid place-items-center text-brand-contrast/70"
+  >
+    <souffleur-icon name="suche" [size]="15" />
+  </span>
+  <input
+    #feld
+    type="search"
+    autocomplete="off"
+    spellcheck="false"
+    placeholder="Suchen …"
+    title="Suchen (Strg/Cmd+K oder /)"
+    aria-controls="suche-liste"
+    aria-autocomplete="list"
+    [attr.aria-expanded]="zeigtListe()"
+    [attr.aria-activedescendant]="zeigtListe() && zeilen().length ? zeilenId(aktiv()) : null"
+    [value]="text()"
+    (input)="tippen(feld.value)"
+    (focus)="fokus()"
+    (keydown)="tasteImFeld($event)"
+    class="w-full rounded-md border-0 bg-white/15 py-1.5 pl-8 pr-2 text-sm text-brand-contrast placeholder:text-brand-contrast/60 transition-[background-color] focus:bg-surface-raised focus:text-content focus:outline-none focus:ring-2 focus:ring-white/60 [&::-webkit-search-cancel-button]:appearance-none"
+  />
+</label>
+
+@if (zeigtListe()) {
+  <div
+    class="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-lg border border-border bg-surface-raised text-content shadow-xl"
+  >
+    <ul
+      id="suche-liste"
+      role="listbox"
+      aria-label="Suchergebnisse"
+      class="m-0 max-h-[70vh] list-none overflow-y-auto p-0"
+    >
+      @for (bereich of bereiche(); track bereich.key) {
+        <li
+          role="group"
+          [attr.aria-label]="bereich.label"
+          class="border-b border-border last:border-b-0"
+        >
+          <div
+            class="flex items-center gap-1.5 bg-surface-sunken px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+          >
+            <souffleur-icon [name]="bereich.icon" [size]="12" />
+            {{ bereich.label }}
+          </div>
+          <ul class="m-0 list-none p-0">
+            @for (zeile of zeilenVon(bereich); track zeile.treffer.id) {
+              <li
+                role="option"
+                [id]="zeilenId(zeile.index)"
+                [attr.aria-selected]="aktiv() === zeile.index"
+                (mousemove)="anfahren(zeile.index)"
+                (click)="oeffnen(zeile.treffer)"
+                class="cursor-pointer px-3 py-2"
+                [class.bg-brand-wash]="aktiv() === zeile.index"
+              >
+                <span
+                  class="block truncate text-sm"
+                  [class.font-semibold]="aktiv() === zeile.index"
+                  >{{ zeile.treffer.titel }}</span
+                >
+                @if (zeile.treffer.untertitel) {
+                  <span class="block truncate text-xs text-content-muted">{{
+                    zeile.treffer.untertitel
+                  }}</span>
+                }
+              </li>
+            }
+          </ul>
+        </li>
+      } @empty {
+        <li class="px-3 py-5 text-center text-sm text-content-muted">
+          @if (laedt()) {
+            Suche …
+          } @else {
+            Nichts gefunden zu „{{ text().trim() }}“.
+          }
+        </li>
+      }
+    </ul>
+    <div
+      class="flex items-center justify-between border-t border-border px-3 py-1.5 text-[11px] text-content-faint"
+    >
+      <span>↑↓ wählen · Enter öffnet · Esc schließt</span>
+      <button
+        type="button"
+        (click)="leeren()"
+        class="cursor-pointer border-0 bg-transparent p-0 text-content-muted hover:underline"
+      >
+        leeren
+      </button>
+    </div>
+  </div>
+}

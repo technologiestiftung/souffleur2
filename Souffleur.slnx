@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Souffleur.Api/Souffleur.Api.csproj" />
+    <Project Path="src/Souffleur.Domain/Souffleur.Domain.csproj" />
+    <Project Path="src/Souffleur.Infrastructure/Souffleur.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Souffleur.Api.Tests/Souffleur.Api.Tests.csproj" />
+    <Project Path="tests/Souffleur.Domain.Tests/Souffleur.Domain.Tests.csproj" />
+    <Project Path="tests/Souffleur.Infrastructure.Tests/Souffleur.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>

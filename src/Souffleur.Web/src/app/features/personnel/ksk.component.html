@@ -1,0 +1,169 @@
+@if (loading()) {
+  <p class="text-sm text-content-muted">Einen Moment…</p>
+} @else if (forbidden()) {
+  <div class="max-w-3xl rounded-xl border border-border bg-surface-raised p-6">
+    <h2 class="m-0 text-base font-semibold">Diese Auswertung bleibt der Leitung vorbehalten</h2>
+    <p class="mt-2 text-sm text-content-muted">
+      Hier stehen Honorarsummen je Person — Personaldaten und Finanzzahlen zugleich. Zugang haben
+      Leitung, Verwaltung und Buchhaltung.
+    </p>
+  </div>
+} @else if (report(); as found) {
+  <div class="flex max-w-3xl flex-col gap-4">
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        (click)="shiftYear(-1)"
+        aria-label="Vorjahr"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-sm text-content"
+      >
+        ‹
+      </button>
+      <span class="text-sm font-medium tabular">{{ found.year }}</span>
+      <button
+        type="button"
+        (click)="shiftYear(1)"
+        aria-label="Folgejahr"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-sm text-content"
+      >
+        ›
+      </button>
+    </div>
+
+    <!-- Die Zahl, um die es geht. -->
+    <div class="rounded-xl border border-border bg-surface-raised p-4">
+      <div class="flex flex-wrap items-end gap-x-8 gap-y-3">
+        <div>
+          <p class="m-0 text-xs text-content-muted">Bemessungsgrundlage</p>
+          <p class="m-0 font-mono text-2xl tabular">
+            {{ found.base | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+          </p>
+        </div>
+
+        <div>
+          <p class="m-0 text-xs text-content-muted">Abgabesatz {{ found.year }}</p>
+          <div class="flex items-center gap-1.5">
+            <input
+              type="text"
+              inputmode="decimal"
+              [ngModel]="percent()"
+              (ngModelChange)="percent.set($event)"
+              placeholder="—"
+              aria-label="Abgabesatz in Prozent"
+              class="w-20 rounded-md border border-border bg-surface px-2 py-1 text-right text-sm text-content tabular"
+            />
+            <span class="text-sm text-content-muted">%</span>
+            <button
+              type="button"
+              (click)="saveRate()"
+              [disabled]="busy()"
+              class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content disabled:opacity-60"
+            >
+              übernehmen
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <p class="m-0 text-xs text-content-muted">Abgabe</p>
+          <p class="m-0 font-mono text-2xl tabular">
+            @if (found.levy !== null) {
+              {{ found.levy | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            } @else {
+              —
+            }
+          </p>
+        </div>
+      </div>
+
+      @if (found.rate === null) {
+        <p class="m-0 mt-3 max-w-prose text-xs text-content-muted">
+          Für {{ found.year }} ist kein Abgabesatz hinterlegt. souffleur liefert keinen mit: Der
+          Satz wird jährlich im Bundesanzeiger veröffentlicht, und eine Zahl in der Software wäre
+          spätestens im nächsten Jahr falsch, ohne dass es jemand merkt.
+        </p>
+      }
+    </div>
+
+    <!-- Woraus sich die Summe ergibt. -->
+    @if (found.flagged.length) {
+      <div>
+        <h3 class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-content-muted">
+          Gekennzeichnet als abgabepflichtig
+        </h3>
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="border-b border-border text-left text-xs text-content-muted">
+              <th class="py-1.5 pr-3 font-medium">Person</th>
+              <th class="w-24 py-1.5 pr-3 text-right font-medium">Belege</th>
+              <th class="w-32 py-1.5 text-right font-medium">Entgelt</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (person of found.flagged; track person.contactId) {
+              <tr class="border-b border-border">
+                <td class="py-1.5 pr-3">
+                  {{ person.name }}
+                  @if (person.unbookedCount > 0) {
+                    <span class="ml-1.5 text-xs text-accent">
+                      {{ person.unbookedCount }} ungebucht
+                    </span>
+                  }
+                </td>
+                <td class="py-1.5 pr-3 text-right tabular">{{ person.voucherCount }}</td>
+                <td class="py-1.5 text-right font-mono tabular">
+                  {{ person.amount | currency: 'EUR' : '' : '1.2-2' : 'de' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="max-w-prose text-sm text-content-muted">
+        Für {{ found.year }} ist niemand als abgabepflichtig gekennzeichnet, an den das Haus gezahlt
+        hat. Gekennzeichnet wird im Adressbuch, an der Bankverbindung des Kontakts.
+      </p>
+    }
+
+    @if (found.unbookedCount > 0) {
+      <div class="rounded-md bg-accent-wash px-3 py-2 text-sm text-accent">
+        {{ found.unbookedCount }} Belege sind noch nicht gebucht. Dort steht der Bruttobetrag — die
+        Umsatzsteuer ließe sich erst aus der Buchung herausrechnen, und Bemessungsgrundlage ist das
+        Entgelt ohne sie.
+      </div>
+    }
+
+    @if (found.unflagged.length) {
+      <div class="rounded-xl border border-accent bg-surface-raised p-4">
+        <h3 class="m-0 text-sm font-semibold">Nicht gekennzeichnet — bitte prüfen</h3>
+        <p class="m-0 mt-1 max-w-prose text-xs text-content-muted">
+          Diese Personen arbeiten künstlerisch mit dem Haus und haben {{ found.year }} Geld
+          bekommen, sind aber nicht als abgabepflichtig gekennzeichnet. Das kann richtig sein —
+          entschieden wird es im Haus, nicht hier.
+        </p>
+        <ul class="m-0 mt-2 list-none space-y-1 p-0">
+          @for (person of found.unflagged; track person.contactId) {
+            <li class="flex items-baseline justify-between gap-3 text-sm">
+              <span>{{ person.name }}</span>
+              <span class="font-mono tabular">
+                {{ person.amount | currency: 'EUR' : '' : '1.2-2' : 'de' }}
+              </span>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+    <p class="m-0 max-w-prose text-xs text-content-faint">
+      souffleur zählt zusammen, was gekennzeichnet ist. Ob jemand abgabepflichtig ist, hängt an der
+      Selbständigkeit, an der Art der Leistung und manchmal an einer Einzelfallprüfung der Kasse —
+      das entscheidet das Haus. Die Meldung selbst geht weiterhin über das Portal der
+      Künstlersozialkasse.
+    </p>
+  </div>
+}

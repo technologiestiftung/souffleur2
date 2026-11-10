@@ -1,0 +1,59 @@
+<main class="grid min-h-dvh place-items-center bg-stone-100 p-4 dark:bg-stone-900">
+  <form
+    class="w-full max-w-sm space-y-5 rounded-xl bg-white p-8 shadow-sm dark:bg-stone-800"
+    (ngSubmit)="submit()"
+  >
+    <div>
+      <h1 class="text-2xl font-semibold text-stone-900 dark:text-stone-50">souffleur</h1>
+      <p class="mt-1 text-sm text-stone-500 dark:text-stone-400">Anmeldung</p>
+    </div>
+
+    @if (error(); as message) {
+      <souffleur-meldung [texte]="message" />
+    }
+
+    <label class="block space-y-1">
+      <span class="text-sm font-medium text-stone-700 dark:text-stone-300">E-Mail-Adresse</span>
+      <input
+        type="email"
+        name="email"
+        autocomplete="username"
+        required
+        [ngModel]="email()"
+        (ngModelChange)="email.set($event)"
+        class="w-full rounded-md border border-stone-300 px-3 py-2 dark:border-stone-600 dark:bg-stone-700 dark:text-stone-50"
+      />
+    </label>
+
+    <label class="block space-y-1">
+      <span class="text-sm font-medium text-stone-700 dark:text-stone-300">Passwort</span>
+      <input
+        type="password"
+        name="password"
+        autocomplete="current-password"
+        required
+        [ngModel]="password()"
+        (ngModelChange)="password.set($event)"
+        class="w-full rounded-md border border-stone-300 px-3 py-2 dark:border-stone-600 dark:bg-stone-700 dark:text-stone-50"
+      />
+    </label>
+
+    <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
+      <input
+        type="checkbox"
+        name="rememberMe"
+        [ngModel]="rememberMe()"
+        (ngModelChange)="rememberMe.set($event)"
+      />
+      Angemeldet bleiben
+    </label>
+
+    <button
+      type="submit"
+      [disabled]="busy()"
+      class="w-full rounded-md bg-stone-900 px-4 py-2 font-medium text-white disabled:opacity-50 dark:bg-stone-50 dark:text-stone-900"
+    >
+      {{ busy() ? 'Einen Moment…' : 'Anmelden' }}
+    </button>
+  </form>
+</main>

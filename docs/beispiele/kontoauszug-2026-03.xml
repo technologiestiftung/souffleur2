@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Ein Kontoauszug zum Ausprobieren, nach ISO 20022 camt.053.001.02.
+
+  Das Konto gehoert niemandem: Die Bankleitzahl 99999999 ist nicht vergeben,
+  die Pruefziffern stimmen trotzdem. Die Datei passt zum Vorfuehrbestand
+  (DevelopmentSeed): Zwei der Umsaetze haben dort einen Beleg, die uebrigen
+  absichtlich nicht.
+
+  Enthalten sind die Faelle, an denen sich das Einlesen beweisen muss:
+    - ein Umsatz mit Rechnungsnummer, Name und IBAN des Lieferanten
+      (findet seinen Beleg ueber alle vier Kriterien)
+    - ein Umsatz, zu dem nur Betrag und Datum passen
+    - Umsaetze ohne Gegenstueck (Miete, Zuwendung, Strom, Ticketerloese)
+    - ein vorgemerkter Umsatz (PDNG), der nicht uebernommen werden darf
+    - ein Schlusssaldo, der uebernommen und nicht gerechnet wird
+-->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <GrpHdr>
+      <MsgId>TESTBANK-2026-03-001</MsgId>
+      <CreDtTm>2026-04-01T04:12:00</CreDtTm>
+    </GrpHdr>
+    <Stmt>
+      <Id>2026-03</Id>
+      <CreDtTm>2026-04-01T04:12:00</CreDtTm>
+      <Acct>
+        <Id><IBAN>DE85999999990001234567</IBAN></Id>
+        <Ccy>EUR</Ccy>
+        <Svcr><FinInstnId><BIC>TESTDEBBXXX</BIC><Nm>Testbank Berlin</Nm></FinInstnId></Svcr>
+      </Acct>
+
+      <Bal>
+        <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">4000.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-03-01</Dt></Dt>
+      </Bal>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="EUR">17312.88</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-03-31</Dt></Dt>
+      </Bal>
+
+      <!-- Dauerauftrag. Kein Beleg, und das ist richtig so. -->
+      <Ntry>
+        <Amt Ccy="EUR">2450.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-03-02</Dt></BookgDt>
+        <ValDt><Dt>2026-03-02</Dt></ValDt>
+        <AcctSvcrRef>TB-2026-03-0001</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <Refs><EndToEndId>DAUER-MIETE-032026</EndToEndId></Refs>
+          <RltdPties>
+            <Cdtr><Nm>Hausverwaltung Kantstrasse GbR</Nm></Cdtr>
+            <CdtrAcct><Id><IBAN>DE58999999990005550001</IBAN></Id></CdtrAcct>
+          </RltdPties>
+          <RmtInf><Ustrd>Miete Spielstaette Maerz 2026</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+
+      <!-- Findet Beleg 2026-00001: Betrag, Naehe im Datum, Name und
+           Rechnungsnummer im Verwendungszweck, dazu die IBAN. -->
+      <Ntry>
+        <Amt Ccy="EUR">247.80</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-03-12</Dt></BookgDt>
+        <ValDt><Dt>2026-03-12</Dt></ValDt>
+        <AcctSvcrRef>TB-2026-03-0002</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <Refs><EndToEndId>RE-2026-0412</EndToEndId></Refs>
+          <RltdPties>
+            <Cdtr><Nm>Buehnenbedarf Schmidt GmbH</Nm></Cdtr>
+            <CdtrAcct><Id><IBAN>DE39999999990009876543</IBAN></Id></CdtrAcct>
+          </RltdPties>
+          <RmtInf><Ustrd>Rechnung RE-2026-0412 Beleuchtungsmittel</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+
+      <!-- Findet Beleg 2026-00002, aber nur ueber Betrag und Datum: Der Beleg
+           hat keinen Lieferanten und keine Rechnungsnummer. Der Vorschlag
+           muss entsprechend schwaecher ausfallen. -->
+      <Ntry>
+        <Amt Ccy="EUR">89.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-03-13</Dt></BookgDt>
+        <ValDt><Dt>2026-03-13</Dt></ValDt>
+        <AcctSvcrRef>TB-2026-03-0003</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <RltdPties><Cdtr><Nm>Behrens, Anja</Nm></Cdtr></RltdPties>
+          <RmtInf><Ustrd>Erstattung Fahrtkosten</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+
+      <Ntry>
+        <Amt Ccy="EUR">15000.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-03-16</Dt></BookgDt>
+        <ValDt><Dt>2026-03-16</Dt></ValDt>
+        <AcctSvcrRef>TB-2026-03-0004</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <RltdPties>
+            <Dbtr><Nm>Senatsverwaltung fuer Kultur und Gesellschaftlichen Zusammenhalt</Nm></Dbtr>
+            <DbtrAcct><Id><IBAN>DE43999999990001000001</IBAN></Id></DbtrAcct>
+          </RltdPties>
+          <RmtInf><Ustrd>Zuwendung 2026 erste Rate Bescheid KS-2026-118</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+
+      <Ntry>
+        <Amt Ccy="EUR">184.32</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-03-25</Dt></BookgDt>
+        <ValDt><Dt>2026-03-25</Dt></ValDt>
+        <AcctSvcrRef>TB-2026-03-0005</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <RltdPties><Cdtr><Nm>Vattenfall Europe Sales</Nm></Cdtr></RltdPties>
+          <RmtInf><Ustrd>Abschlag Strom Maerz 2026 Vertrag 884120</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+
+      <!-- Vorgemerkt, nicht gebucht. Darf nicht uebernommen werden: Betrag
+           und Datum koennen sich bis zur Buchung noch aendern. -->
+      <Ntry>
+        <Amt Ccy="EUR">56.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts><Cd>PDNG</Cd></Sts>
+        <BookgDt><Dt>2026-03-30</Dt></BookgDt>
+        <AcctSvcrRef>TB-2026-03-0006</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <RltdPties><Cdtr><Nm>Kartenzahlung Baumarkt</Nm></Cdtr></RltdPties>
+          <RmtInf><Ustrd>Vorgemerkt</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+
+      <Ntry>
+        <Amt Ccy="EUR">1284.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts><Cd>BOOK</Cd></Sts>
+        <BookgDt><Dt>2026-03-31</Dt></BookgDt>
+        <ValDt><Dt>2026-03-31</Dt></ValDt>
+        <AcctSvcrRef>TB-2026-03-0007</AcctSvcrRef>
+        <NtryDtls><TxDtls>
+          <RltdPties><Dbtr><Nm>Ticketverkauf Abrechnung</Nm></Dbtr></RltdPties>
+          <RmtInf><Ustrd>Erloese Eintritt KW 11 bis 13</Ustrd></RmtInf>
+        </TxDtls></NtryDtls>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>

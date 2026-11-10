@@ -1,0 +1,351 @@
+<souffleur-dialog [heading]="'Termin am ' + date()" (closed)="closed.emit()">
+  <div class="space-y-3">
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Titel</span>
+      <input
+        type="text"
+        [(ngModel)]="title"
+        autofocus
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      />
+    </label>
+
+    <div class="grid grid-cols-2 gap-3">
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Kategorie</span>
+        <select
+          [(ngModel)]="categoryId"
+          class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          <option value="">— keine —</option>
+          @for (category of categories(); track category.id) {
+            <option [value]="category.id">{{ category.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Status</span>
+        <select
+          [(ngModel)]="status"
+          class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          @for (option of statuses; track option.value) {
+            <option [value]="option.value">{{ option.label }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <!-- Zu welchem Stück der Termin gehört -- die Produktion liest ihn darüber. -->
+    @if (productions().length > 0) {
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Produktion</span>
+        <select
+          [(ngModel)]="productionId"
+          class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          <option value="">— keine —</option>
+          @for (production of productions(); track production.id) {
+            <option [value]="production.id">{{ production.title }}</option>
+          }
+        </select>
+      </label>
+    }
+
+    <label class="flex items-center gap-2 text-sm">
+      <input type="checkbox" [(ngModel)]="isAllDay" />
+      <span>Ganztägig</span>
+    </label>
+
+    @if (!isAllDay()) {
+      <div class="grid grid-cols-2 gap-3">
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Von</span>
+          <input
+            type="time"
+            [(ngModel)]="startTime"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content tabular"
+          />
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Bis</span>
+          <input
+            type="time"
+            [(ngModel)]="endTime"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content tabular"
+          />
+        </label>
+      </div>
+    }
+
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Ort</span>
+      <input
+        type="text"
+        [(ngModel)]="location"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      />
+    </label>
+
+    @if (resources().length > 0) {
+      <div class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Belegt</span>
+        <div class="flex flex-wrap gap-1">
+          @for (resource of resources(); track resource.id) {
+            <button
+              type="button"
+              (click)="toggleResource(resource.id)"
+              [attr.aria-pressed]="hasResource(resource.id)"
+              [title]="
+                resource.isExclusive ? resource.name : resource.name + ' (mehrfach vergebbar)'
+              "
+              class="cursor-pointer rounded-full border px-2.5 py-1 text-xs"
+              [class.bg-brand]="hasResource(resource.id)"
+              [class.text-brand-contrast]="hasResource(resource.id)"
+              [class.border-brand]="hasResource(resource.id)"
+              [class.border-border]="!hasResource(resource.id)"
+              [class.text-content]="!hasResource(resource.id)"
+            >
+              {{ resource.name }}
+            </button>
+          }
+        </div>
+
+        @if (chosenResources().length > 0) {
+          <div class="mt-2 flex items-center gap-2">
+            <button
+              type="button"
+              (click)="check()"
+              [disabled]="checking()"
+              class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content disabled:opacity-60"
+            >
+              {{ checking() ? 'wird geprüft …' : 'Frei?' }}
+            </button>
+            @if (checked() && conflicts().length === 0) {
+              <span class="text-xs text-content-muted">Nichts steht im Weg.</span>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    @if (people().length > 0) {
+      <div class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Dabei</span>
+
+        @if (assigned().length > 0) {
+          <ul class="m-0 mb-2 list-none space-y-1 p-0">
+            @for (person of assigned(); track person.contactId) {
+              <li class="flex items-center gap-2">
+                <span class="min-w-40 flex-1 truncate text-sm">
+                  {{ personName(person.contactId) }}
+                </span>
+
+                <select
+                  [ngModel]="person.functionId"
+                  (ngModelChange)="setFunction(person.contactId, $event)"
+                  [attr.aria-label]="'Funktion von ' + personName(person.contactId)"
+                  class="w-32 rounded-md border border-border bg-surface px-2 py-1 text-xs text-content"
+                >
+                  <option [ngValue]="null">— Funktion —</option>
+                  @for (option of functions(); track option.id) {
+                    <option [ngValue]="option.id">{{ option.label }}</option>
+                  }
+                </select>
+
+                <select
+                  [ngModel]="person.status"
+                  (ngModelChange)="setParticipation(person.contactId, $event)"
+                  [attr.aria-label]="'Zusage von ' + personName(person.contactId)"
+                  class="w-28 rounded-md border border-border bg-surface px-2 py-1 text-xs text-content"
+                >
+                  @for (option of participationStatuses; track option.value) {
+                    <option [ngValue]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+
+                <button
+                  type="button"
+                  (click)="removePerson(person.contactId)"
+                  [attr.aria-label]="personName(person.contactId) + ' herausnehmen'"
+                  class="cursor-pointer border-0 bg-transparent px-1 text-sm text-content-faint hover:text-critical"
+                >
+                  ✕
+                </button>
+              </li>
+            }
+          </ul>
+        }
+
+        @if (available().length > 0) {
+          <!-- Ohne ngModel: Die gewählte Person verschwindet sofort aus der
+                 Liste, und Angular schriebe den leeren Wert nicht zurück --
+                 das Feld bliebe leer statt den Hinweis zu zeigen. -->
+          <select
+            #picker
+            (change)="addPerson(picker.value); picker.value = ''"
+            aria-label="Person einteilen"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          >
+            <option value="">— jemanden einteilen —</option>
+            @for (person of available(); track person.id) {
+              <option [value]="person.id">
+                {{ person.name }}
+                @if (person.position) {
+                  · {{ person.position }}
+                }
+              </option>
+            }
+          </select>
+        }
+      </div>
+    }
+
+    <!-- Die Doppelbelegung steht hier und nicht bei den Fehlern: Sie ist
+           kein Eingabefehler, sondern eine Lage, die man kennen muss. -->
+    @if (conflicts().length > 0) {
+      <div class="rounded-md border border-accent bg-accent-wash px-3 py-2 text-sm">
+        <div class="mb-1 font-medium text-accent">
+          Schon vergeben
+          @if (conflicts().length > 1) {
+            <span class="tabular">({{ conflicts().length }})</span>
+          }
+        </div>
+        <ul class="m-0 max-h-32 list-none space-y-0.5 overflow-auto p-0 text-xs">
+          @for (conflict of conflicts(); track $index) {
+            <li class="flex gap-2">
+              <span class="w-24 shrink-0 text-content-muted tabular">
+                {{ conflictTime(conflict) }}
+              </span>
+              <span class="font-medium">{{ conflict.subjectName }}</span>
+              <span class="text-content-muted">{{ conflict.title }}</span>
+              @if (conflict.status !== 2) {
+                <span class="text-content-faint">{{ conflict.statusLabel }}</span>
+              }
+            </li>
+          }
+        </ul>
+      </div>
+    }
+
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Notiz</span>
+      <textarea
+        [(ngModel)]="description"
+        rows="2"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      ></textarea>
+    </label>
+
+    <!-- Die Wiederholung gehört hierher und nicht hinter einen zweiten Knopf:
+           Ob eine Probe einmal oder jeden Dienstag stattfindet, weiß man beim
+           Eintragen. -->
+    <div class="rounded-md border border-border p-3">
+      <label class="flex items-center gap-2 text-sm font-medium">
+        <input type="checkbox" [(ngModel)]="repeats" />
+        <span>Wiederholt sich</span>
+      </label>
+
+      @if (repeats()) {
+        <div class="mt-3 space-y-3">
+          <div class="flex items-center gap-2 text-sm">
+            <select
+              [(ngModel)]="frequency"
+              class="rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+            >
+              @for (option of frequencies; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+            <span class="text-content-muted">alle</span>
+            <input
+              type="number"
+              min="1"
+              [(ngModel)]="interval"
+              class="w-16 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content tabular"
+            />
+          </div>
+
+          @if (showWeekdays()) {
+            <div class="flex flex-wrap gap-1">
+              @for (day of weekdayOptions; track day.flag) {
+                <button
+                  type="button"
+                  (click)="toggleWeekday(day.flag)"
+                  class="cursor-pointer rounded-md border border-border px-2 py-1 text-xs"
+                  [class.bg-brand]="hasWeekday(day.flag)"
+                  [class.text-brand-contrast]="hasWeekday(day.flag)"
+                  [class.border-brand]="hasWeekday(day.flag)"
+                >
+                  {{ day.label }}
+                </button>
+              }
+            </div>
+          }
+
+          <div class="space-y-1.5 text-sm">
+            <label class="flex items-center gap-2">
+              <input type="radio" [(ngModel)]="endMode" value="until" />
+              <span class="text-content-muted">bis</span>
+              <input
+                type="date"
+                [(ngModel)]="until"
+                [disabled]="endMode() !== 'until'"
+                class="rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+              />
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="radio" [(ngModel)]="endMode" value="count" />
+              <input
+                type="number"
+                min="1"
+                [(ngModel)]="count"
+                [disabled]="endMode() !== 'count'"
+                class="w-16 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content tabular"
+              />
+              <span class="text-content-muted">Termine</span>
+            </label>
+            <label class="flex items-center gap-2">
+              <input type="radio" [(ngModel)]="endMode" value="never" />
+              <span class="text-content-muted">ohne Ende</span>
+            </label>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <button
+    dialogActions
+    type="button"
+    (click)="closed.emit()"
+    class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+  >
+    Abbrechen
+  </button>
+  @if (conflicts().length > 0) {
+    <button
+      dialogActions
+      type="button"
+      (click)="save(true)"
+      [disabled]="saving()"
+      class="cursor-pointer rounded-md border border-accent bg-transparent px-3 py-1.5 text-sm text-accent disabled:opacity-60"
+    >
+      Trotzdem anlegen
+    </button>
+  }
+  <button
+    dialogActions
+    type="button"
+    (click)="save()"
+    [disabled]="saving()"
+    class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
+  >
+    {{ saving() ? 'Wird gespeichert …' : 'Anlegen' }}
+  </button>
+</souffleur-dialog>

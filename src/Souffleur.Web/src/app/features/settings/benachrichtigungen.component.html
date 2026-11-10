@@ -1,0 +1,55 @@
+<div class="h-full overflow-auto p-5">
+  <div class="mb-4 max-w-3xl">
+    <h1 class="m-0 font-display text-lg font-semibold">Benachrichtigungen</h1>
+    <p class="m-0 mt-1 max-w-prose text-sm text-content-muted">
+      In der Glocke oben steht alles. Hier stellst du ein, wofür zusätzlich eine Mail kommt —
+      sofort, oder einmal am Morgen gesammelt. Was du in der Glocke schon gelesen hast, kommt
+      nicht noch einmal per Mail.
+    </p>
+  </div>
+
+  @if (!mailBereit()) {
+    <souffleur-meldung
+      class="mb-3 max-w-3xl"
+      art="hinweis"
+      texte="Dieses Haus hat noch keinen Mailserver eingetragen. Die Einstellung wird gespeichert und gilt, sobald einer da ist."
+    />
+  }
+  @if (problems().length > 0) {
+    <souffleur-meldung class="mb-3 max-w-3xl" [texte]="problems()" />
+  }
+
+  <table class="w-full max-w-3xl border-collapse text-sm">
+    <thead>
+      <tr class="border-b border-border text-left text-xs text-content-muted">
+        <th class="py-1.5 font-medium">Worum es geht</th>
+        <th class="w-56 py-1.5 font-medium">Mail</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (s of einstellungen(); track s.kind) {
+        <tr class="border-b border-border">
+          <td class="py-2.5">{{ s.label }}</td>
+          <td class="py-2.5">
+            <select
+              [ngModel]="s.email"
+              (ngModelChange)="aendern(s, +$event)"
+              [attr.aria-label]="'Mail bei ' + s.label"
+              class="w-48 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            >
+              @for (a of arten; track a.wert) {
+                <option [ngValue]="a.wert">{{ a.label }}</option>
+              }
+            </select>
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+
+  <p class="m-0 mt-2 h-4 text-xs text-content-muted" role="status">
+    @if (gespeichert()) {
+      Gespeichert.
+    }
+  </p>
+</div>

@@ -1,0 +1,70 @@
+<div class="flex h-full flex-col p-6">
+  <header class="mb-4">
+    <h1 class="font-display text-2xl font-bold tracking-tight">Module des Hauses</h1>
+    <p class="mt-1 text-sm text-content-muted">
+      Jedes Haus entscheidet, was es nutzt. Ein abgeschaltetes Modul verschwindet aus den
+      Reitern, und seine Daten bleiben unangetastet liegen.
+    </p>
+  </header>
+
+  @if (problem()) {
+    <souffleur-meldung class="mb-3" [texte]="problem()" />
+  }
+
+  <ul class="flex max-w-3xl list-none flex-col gap-2 p-0">
+    @for (module of all(); track module.key) {
+      <li
+        class="flex items-center justify-between gap-4 rounded-xl border border-border bg-surface-raised px-4 py-3"
+      >
+        <div class="min-w-0">
+          <span class="block text-sm font-medium">{{ module.label }}</span>
+          <!--
+            Kein „eingeschaltet" mehr unter dem Namen: Das sagt der Schalter
+            daneben, und zweimal dasselbe liest sich wie zwei Angaben.
+          -->
+          @if (!module.canBeDisabled) {
+            <span class="block text-xs text-content-muted">
+              Lässt sich nicht abschalten — andere Module hängen daran.
+            </span>
+          } @else if (module.note) {
+            <span class="block text-xs text-content-muted">{{ module.note }}</span>
+          }
+        </div>
+
+        <!--
+          role="switch" und nicht aria-pressed: Ein Schieber ist an oder aus,
+          kein gedrückter Knopf. Screenreader sagen ihn dann als Schalter an.
+
+          Nicht abschaltbare Module zeigen denselben Schieber, nur gesperrt --
+          sonst sähe ihre Zeile anders aus als die übrigen, und man suchte
+          den Schalter, den es dort nicht gibt. Warum er gesperrt ist, steht
+          darüber.
+        -->
+        <button
+          type="button"
+          role="switch"
+          (click)="toggle(module)"
+          [disabled]="!module.canBeDisabled || busy() === module.key"
+          [attr.aria-checked]="module.isEnabled"
+          [attr.aria-label]="module.label"
+          class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border-0 p-0 transition-colors disabled:cursor-default disabled:opacity-50"
+          [class.cursor-pointer]="module.canBeDisabled"
+          [class.bg-brand]="module.isEnabled"
+          [class.bg-border-strong]="!module.isEnabled"
+        >
+          <!--
+            Der Weg als Stil und nicht als Tailwind-Klasse: Ein Name mit
+            eckigen Klammern -- translate-x-[22px] -- übersteht die
+            [class.…]-Schreibweise nicht. Die Klasse landet im DOM, Tailwind
+            hat sie aber nie gebaut, und nichts meldet das. Hier zählt
+            ohnehin ein genauer Wert: 44 breit, 20 der Knopf, 2 Rand.
+          -->
+          <span
+            class="pointer-events-none inline-block size-5 rounded-full bg-white shadow transition-transform"
+            [style.transform]="module.isEnabled ? 'translateX(22px)' : 'translateX(2px)'"
+          ></span>
+        </button>
+      </li>
+    }
+  </ul>
+</div>

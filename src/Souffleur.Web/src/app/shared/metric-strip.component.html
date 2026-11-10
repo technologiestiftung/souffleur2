@@ -1,0 +1,67 @@
+@if (loading()) {
+  <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-hidden="true">
+    @for (slot of placeholders; track slot) {
+      <div class="h-61 animate-pulse rounded-xl border border-border bg-surface-raised"></div>
+    }
+  </div>
+} @else if (tiles().length) {
+  <div class="mb-2 flex items-center gap-2">
+    <!-- Die Übersicht hängt hier ihren Griff ein; über einem Modul bleibt er weg. -->
+    <ng-content select="[data-sortier-griff]" />
+    @if (heading()) {
+      <span class="text-sm font-semibold">
+        <a [routerLink]="['/', module()]" class="text-content no-underline hover:text-brand">
+          {{ heading() }}
+        </a>
+      </span>
+    }
+
+    <!-- Ein Pfeil statt „Kennzahlen zuklappen": Was er tut, sieht man ihm an;
+         der Name bleibt für die Tastatur und den Screenreader. -->
+    <button
+      type="button"
+      (click)="toggle()"
+      [attr.aria-expanded]="shown()"
+      [attr.aria-label]="shown() ? 'Kennzahlen zuklappen' : 'Kennzahlen aufklappen'"
+      [title]="shown() ? 'Kennzahlen zuklappen' : 'Kennzahlen aufklappen'"
+      class="ml-auto grid size-6 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-content-faint hover:text-content"
+    >
+      <souffleur-icon [name]="shown() ? 'pfeil-auf' : 'pfeil-ab'" [size]="14" />
+    </button>
+
+    <!-- Und dahinter das Menü des Blocks, wenn die Übersicht eines mitgibt. -->
+    <ng-content select="[data-block-menue]" />
+  </div>
+
+  @if (shown()) {
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      @for (tile of tiles(); track tile.key) {
+        <figure class="m-0 flex flex-col rounded-xl border border-border bg-surface-raised p-4">
+          <figcaption class="mb-3 text-xs font-semibold text-content-muted">
+            {{ tile.label }}
+          </figcaption>
+
+          @if (hasData(tile)) {
+            @if (tile.shape === 'donut') {
+              <souffleur-donut
+                [segments]="tile.segments"
+                [center]="tile.center"
+                [centerNote]="tile.centerNote"
+              />
+            } @else {
+              <p class="mb-3 flex items-baseline gap-1.5">
+                <strong class="font-display text-xl font-bold leading-none">{{
+                  tile.center
+                }}</strong>
+                <span class="text-[11px] text-content-muted">{{ tile.centerNote }}</span>
+              </p>
+              <souffleur-bars [segments]="tile.segments" />
+            }
+          } @else {
+            <p class="my-auto py-6 text-center text-xs text-content-faint">{{ tile.empty }}</p>
+          }
+        </figure>
+      }
+    </div>
+  }
+}

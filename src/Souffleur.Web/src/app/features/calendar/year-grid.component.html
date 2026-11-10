@@ -1,0 +1,83 @@
+<div class="h-full overflow-auto">
+  <div class="grid" [style.grid-template-columns]="columns()">
+    <!-- Kopfzeile: bleibt beim Blättern stehen, sonst weiß man nach zehn
+         Zeilen nicht mehr, welcher Monat welcher ist. -->
+    <div class="sticky top-0 left-0 z-20 border-b border-r border-border bg-surface-raised"></div>
+
+    @for (month of months(); track $index) {
+      <div
+        class="sticky top-0 z-10 border-b border-r border-border bg-surface-raised px-2 py-1.5 text-center"
+        [class.border-l-2]="month.isYearStart"
+        [class.border-l-border-strong]="month.isYearStart"
+      >
+        <div class="text-sm font-semibold">{{ month.label }}</div>
+        <div class="text-[11px] text-content-faint tabular">{{ month.year }}</div>
+      </div>
+    }
+
+    @for (row of rows(); track row.day) {
+      <div
+        class="sticky left-0 z-10 border-b border-r border-border bg-surface-raised px-1 py-1 text-right text-xs text-content-muted tabular"
+      >
+        {{ row.day }}
+      </div>
+
+      @for (cell of row.cells; track $index) {
+        <div
+          class="min-h-9 min-w-0 border-b border-r border-border px-1 py-0.5"
+          [class.bg-surface-sunken]="cell.isWeekend"
+          [class.opacity-40]="!cell.date"
+          [class.ring-1]="cell.isToday"
+          [class.ring-brand]="cell.isToday"
+          [class.ring-inset]="cell.isToday"
+        >
+          @if (cell.date) {
+            <button
+              type="button"
+              (click)="dayPicked.emit(cell.date)"
+              class="w-full cursor-pointer border-0 bg-transparent p-0 text-left text-[10px] leading-none text-content-faint hover:text-brand"
+              [attr.aria-label]="'Tag ' + cell.date + ' zeigen'"
+            >
+              {{ cell.weekday }}
+            </button>
+
+            @for (entry of shown(cell); track $index) {
+              <button
+                type="button"
+                (click)="entryPicked.emit(entry)"
+                [title]="tooltip(entry)"
+                class="mt-0.5 block w-full cursor-pointer truncate rounded-xs border-0 border-l-2 py-px pr-0.5 pl-1 text-left text-[11px] leading-tight text-content"
+                [style.border-left-color]="accent(entry.categoryColor)"
+                [style.background]="wash(entry.categoryColor)"
+                [class.line-through]="entry.status === 3"
+                [class.opacity-55]="entry.status === 3"
+                [class.italic]="entry.status === 1"
+              >
+                @if (time(entry)) {
+                  <span class="tabular text-content-muted">{{ time(entry) }}</span>
+                }
+                @if (runsOn(entry)) {
+                  <!-- Ein Dauerlauf steht nur einmal je Monat. Ohne Zeichen
+                       sähe er aus wie ein Termin an genau diesem Tag. -->
+                  <span class="text-content-muted" aria-hidden="true">↔</span>
+                }
+                {{ entry.title }}
+              </button>
+            }
+
+            @if (hidden(cell) > 0) {
+              <button
+                type="button"
+                (click)="dayPicked.emit(cell.date)"
+                [attr.aria-label]="hidden(cell) + ' weitere am ' + cell.date"
+                class="mt-0.5 block w-full cursor-pointer border-0 bg-transparent p-0 text-left text-[10px] text-content-muted hover:text-brand"
+              >
+                +{{ hidden(cell) }} weitere
+              </button>
+            }
+          }
+        </div>
+      }
+    }
+  </div>
+</div>

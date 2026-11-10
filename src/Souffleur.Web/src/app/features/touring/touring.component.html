@@ -1,0 +1,678 @@
+<div class="flex h-full min-h-0 flex-col">
+  @if (!blocked() && !loading()) {
+    <souffleur-metric-strip module="touring" class="block shrink-0 border-b border-border p-4" />
+  }
+
+  @if (loading()) {
+    <p class="p-6 text-sm text-content-muted">Einen Moment…</p>
+  } @else if (blocked()) {
+    <div class="p-6">
+      <div class="rounded-xl border border-border bg-surface-raised p-6">
+        <h2 class="text-base font-semibold">Touring ist in diesem Haus nicht eingeschaltet</h2>
+        <p class="mt-2 text-sm text-content-muted">
+          Module werden unter Einstellungen an- und abgeschaltet. Häuser, die nicht reisen, lassen
+          es aus.
+        </p>
+      </div>
+    </div>
+  } @else {
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-2.5">
+      <label class="flex items-center gap-2 text-xs text-content-muted">
+        <input
+          type="checkbox"
+          [ngModel]="includeSettled()"
+          (ngModelChange)="includeSettled.set($event); reload()"
+        />
+        <span>Abgerechnetes zeigen</span>
+      </label>
+
+      <div class="ml-auto flex items-center gap-3 text-xs text-content-muted tabular">
+        <span>{{ summary().tours }} Tourneen</span>
+        <span>{{ summary().binding }} feste Gastspiele</span>
+        @if (summary().open > 0) {
+          <span class="text-accent">{{ summary().open }} in Verhandlung</span>
+        }
+      </div>
+    </div>
+
+    @if (problems().length > 0 && editingTour() === null && editingStop() === null) {
+      <souffleur-meldung class="mx-4 mt-3" [texte]="problems()" />
+    }
+
+    <div class="min-h-0 flex-1 overflow-auto p-4">
+      @if (tours().length === 0) {
+        <div class="rounded-xl border border-border bg-surface-raised p-6">
+          <h2 class="text-base font-semibold">Noch keine Tournee</h2>
+          <p class="mt-2 text-sm text-content-muted">
+            Eine Tournee ist die Klammer um ihre Gastspiele: eine Produktion, mehrere Orte. Die
+            Spielstätten kommen aus dem Adressbuch (Rolle „Spielstätte“), die Vorstellungen
+            erscheinen im Kalender, die Gage hängt am Beleg.
+          </p>
+          @if (canManage()) {
+            <button
+              type="button"
+              (click)="startTour(null)"
+              class="mt-4 cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover"
+            >
+              Tournee anlegen
+            </button>
+          }
+        </div>
+      }
+
+      <ul class="m-0 list-none space-y-3 p-0" aria-label="Tourneen">
+        @for (tour of tours(); track tour.id) {
+          <li class="rounded-xl border border-border bg-surface-raised">
+            <div class="flex flex-wrap items-center gap-3 px-4 py-3">
+              <button
+                type="button"
+                (click)="toggle(tour)"
+                [attr.aria-expanded]="openTour() === tour.id"
+                class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-left text-content"
+              >
+                <souffleur-icon name="touring" class="size-5 shrink-0 text-content-muted" />
+                <span class="min-w-0">
+                  <span class="block truncate text-sm font-semibold">{{ tour.title }}</span>
+                  <span class="block text-xs text-content-muted">
+                    @if (tour.productionLabel) {
+                      {{ tour.productionLabel }} ·
+                    }
+                    {{ span(tour) }} · {{ tour.stops.length }}
+                    {{ tour.stops.length === 1 ? 'Gastspiel' : 'Gastspiele' }}
+                    @if (tour.members.length > 0) {
+                      · {{ tour.members.length }} Reisende
+                    }
+                  </span>
+                </span>
+              </button>
+
+              <!-- Die Stände der Gastspiele als Punkte: ein Blick genügt. -->
+              <span class="flex items-center gap-1" [title]="tour.stops.length + ' Gastspiele'">
+                @for (stop of tour.stops; track stop.id) {
+                  <span
+                    class="inline-block size-2.5 rounded-full"
+                    [class.bg-surface-sunken]="slot(stop.status) === 0"
+                    [style.background]="slot(stop.status) ? 'var(--color-chart-' + slot(stop.status) + ')' : null"
+                    [title]="stop.venueName + ': ' + stop.statusLabel"
+                  ></span>
+                }
+              </span>
+
+              @if (canManage()) {
+                <span class="flex items-center gap-1">
+                  <button
+                    type="button"
+                    (click)="startStop(tour, null)"
+                    class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+                  >
+                    Gastspiel anlegen
+                  </button>
+                  <button
+                    type="button"
+                    (click)="startTour(tour)"
+                    class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+                  >
+                    Ändern
+                  </button>
+                  <button
+                    type="button"
+                    (click)="askRemoveTour(tour)"
+                    class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content-muted hover:text-content"
+                    [attr.aria-label]="'Tournee ' + tour.title + ' löschen'"
+                  >
+                    Löschen
+                  </button>
+                </span>
+              }
+            </div>
+
+            @if (openTour() === tour.id) {
+              <div class="border-t border-border">
+                @if (tour.notes) {
+                  <p class="m-0 px-4 pt-3 text-sm text-content-muted">{{ tour.notes }}</p>
+                }
+
+                @if (tour.members.length > 0) {
+                  <p class="m-0 px-4 pt-3 text-xs text-content-muted">
+                    <span class="font-medium">Reisende:&nbsp;</span>
+                    @for (member of tour.members; track member.id; let last = $last) {
+                      <a [routerLink]="['/kontakte']" [queryParams]="{ id: member.contactId }" class="text-content underline-offset-2 hover:underline">{{ member.contactName }}</a>@if (member.functionLabel) {
+                        ({{ member.functionLabel }})
+                      }@if (member.status === 3) {
+                        <span class="text-content-faint"> – abgesagt</span>
+                      }@if (!last) {, }
+                    }
+                  </p>
+                }
+
+                @if (tour.stops.length === 0) {
+                  <p class="m-0 px-4 py-3 text-sm text-content-muted">
+                    Noch kein Gastspiel. Ein Gastspiel ist ein Ort mit Anreise, Vorstellungen und Gage.
+                  </p>
+                } @else {
+                  <table class="mt-2 w-full border-collapse text-sm">
+                    <thead>
+                      <tr class="border-b border-border text-left">
+                        <th scope="col" class="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-content-muted">Spielstätte</th>
+                        <th scope="col" class="px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-content-muted">Reise</th>
+                        <th scope="col" class="px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-content-muted">Vorstellungen</th>
+                        <th scope="col" class="px-2 py-2 text-[11px] font-semibold uppercase tracking-wide text-content-muted">Stand</th>
+                        <th scope="col" class="px-2 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-content-muted">Gage</th>
+                        <th scope="col" class="px-4 py-2"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (stop of tour.stops; track stop.id) {
+                        <tr class="border-b border-border/60 align-top">
+                          <td class="px-4 py-2">
+                            <span class="block">{{ venueOf(stop) }}</span>
+                            @if (stop.contactPersonName) {
+                              <span class="block text-xs text-content-muted">{{ stop.contactPersonName }}</span>
+                            }
+                            @if (stop.notes) {
+                              <span class="block text-xs text-content-faint">{{ stop.notes }}</span>
+                            }
+                          </td>
+                          <td class="px-2 py-2 text-content-muted tabular">
+                            {{ travel(stop) }}
+                            @if (stop.hostCoversTravel || stop.hostCoversAccommodation) {
+                              <span class="block text-xs text-content-faint">
+                                Gastgeber trägt
+                                {{ stop.hostCoversTravel && stop.hostCoversAccommodation ? 'Reise und Hotel' : stop.hostCoversTravel ? 'Reise' : 'Hotel' }}
+                              </span>
+                            }
+                          </td>
+                          <td class="px-2 py-2 tabular">
+                            @if (stop.performances.length === 0) {
+                              <span class="text-content-faint">—</span>
+                            }
+                            @for (performance of stop.performances; track performance.id) {
+                              <span class="block">
+                                {{ performance.startsAt | date: 'EE dd.MM.yy, HH:mm' : undefined : 'de' }}
+                                @if (performance.note) {
+                                  <span class="text-xs text-content-faint">{{ performance.note }}</span>
+                                }
+                              </span>
+                            }
+                          </td>
+                          <td class="px-2 py-2">
+                            <span class="inline-flex items-center gap-1.5 text-xs">
+                              <span
+                                class="inline-block size-2 rounded-full"
+                                [class.bg-surface-sunken]="slot(stop.status) === 0"
+                                [style.background]="slot(stop.status) ? 'var(--color-chart-' + slot(stop.status) + ')' : null"
+                              ></span>
+                              {{ stop.statusLabel }}
+                            </span>
+                          </td>
+                          <td class="px-2 py-2 text-right font-mono tabular">
+                            @if (stop.fee !== null) {
+                              {{ stop.fee | currency: 'EUR' : 'symbol' : '1.0-0' : 'de' }}
+                              @if (stop.voucherLabel) {
+                                <a
+                                  routerLink="/finanzen/belege"
+                                  class="block font-sans text-xs text-content-muted underline-offset-2 hover:underline"
+                                  title="Beleg in den Finanzen"
+                                >
+                                  Beleg {{ stop.voucherLabel }}
+                                </a>
+                              } @else if (stop.isBinding) {
+                                <span class="block font-sans text-xs text-content-faint">noch nicht in Rechnung</span>
+                              }
+                            } @else {
+                              <span class="text-content-faint">—</span>
+                            }
+                          </td>
+                          <td class="px-4 py-2 text-right">
+                            @if (canManage()) {
+                              <button
+                                type="button"
+                                (click)="startStop(tour, stop)"
+                                class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+                              >
+                                Ändern
+                              </button>
+                              <button
+                                type="button"
+                                (click)="askRemoveStop(stop)"
+                                class="ml-1 cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content-muted hover:text-content"
+                                [attr.aria-label]="'Gastspiel ' + stop.venueName + ' löschen'"
+                              >
+                                Löschen
+                              </button>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                }
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    </div>
+  }
+</div>
+
+<!-- Tournee anlegen oder ändern. -->
+@if (editingTour() !== null) {
+  <souffleur-dialog
+    [heading]="editingTour() === 'neu' ? 'Tournee anlegen' : 'Tournee ändern'"
+    note="Eine Produktion, mehrere Orte. Die Gastspiele kommen danach einzeln dazu."
+    size="breit"
+    (closed)="cancel()"
+  >
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    <input
+      type="text"
+      [ngModel]="tourDraft().title"
+      (ngModelChange)="patchTour({ title: $event })"
+      placeholder="Wie heißt die Tournee?"
+      aria-label="Titel"
+      class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+    />
+
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Produktion</span>
+        <select
+          [ngModel]="tourDraft().productionId"
+          (ngModelChange)="patchTour({ productionId: $event })"
+          aria-label="Produktion"
+          class="w-56 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          <option [ngValue]="null">— keine —</option>
+          @for (entry of productions(); track entry.id) {
+            <option [ngValue]="entry.id">{{ entry.title }}</option>
+          }
+        </select>
+      </label>
+      @if (productions().length === 0) {
+        <a routerLink="/produktionen" [queryParams]="{ neu: 1 }" class="pb-2 text-xs text-content-muted underline-offset-2 hover:underline">
+          Noch keine laufende Produktion — anlegen
+        </a>
+      }
+    </div>
+
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Notizen</span>
+      <textarea
+        rows="2"
+        [ngModel]="tourDraft().notes"
+        (ngModelChange)="patchTour({ notes: $event })"
+        aria-label="Notizen"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      ></textarea>
+    </label>
+
+    <!-- Veranstalterseiten, Ausschreibungen, Pressestimmen zur Tournee. -->
+    <souffleur-lesezeichen
+      target="Tour"
+      [targetId]="editingTour() === 'neu' ? null : editingTour()"
+      [ausstehend]="pendingTourBookmarks()"
+      (ausstehendChange)="pendingTourBookmarks.set($event)"
+    />
+
+    <!-- Die Reisenden: aus dem Adressbuch, mit Funktion -- wie am Termin. -->
+    <div>
+      <div class="mb-1 flex items-center justify-between">
+        <span class="text-xs font-medium text-content-muted">Reisende</span>
+        <button
+          type="button"
+          (click)="addMember()"
+          [disabled]="people().length === 0"
+          class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content disabled:opacity-50"
+        >
+          Person hinzufügen
+        </button>
+      </div>
+      @if (tourDraft().members.length === 0) {
+        <p class="m-0 text-xs text-content-faint">Noch niemand eingeteilt. Wer mitreist, steht im Kalender an jeder Vorstellung.</p>
+      }
+      <ul class="m-0 list-none space-y-1.5 p-0">
+        @for (member of tourDraft().members; track $index; let i = $index) {
+          <li class="flex flex-wrap items-center gap-2">
+            <select
+              [ngModel]="member.contactId"
+              (ngModelChange)="patchMember(i, { contactId: $event })"
+              aria-label="Person"
+              class="w-52 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+            >
+              @for (person of people(); track person.id) {
+                <option [ngValue]="person.id">{{ person.name }}</option>
+              }
+            </select>
+            <select
+              [ngModel]="member.functionId"
+              (ngModelChange)="patchMember(i, { functionId: $event })"
+              aria-label="Funktion"
+              class="w-40 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+            >
+              <option [ngValue]="null">— Funktion —</option>
+              @for (entry of functions(); track entry.id) {
+                <option [ngValue]="entry.id">{{ entry.label }}</option>
+              }
+            </select>
+            <select
+              [ngModel]="member.status"
+              (ngModelChange)="patchMember(i, { status: $event })"
+              aria-label="Zusage"
+              class="w-32 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+            >
+              <option [ngValue]="1">Eingeteilt</option>
+              <option [ngValue]="2">Zugesagt</option>
+              <option [ngValue]="3">Abgesagt</option>
+            </select>
+            <button
+              type="button"
+              (click)="removeMember(i)"
+              class="cursor-pointer border-0 bg-transparent text-xs text-content-muted hover:text-content"
+              aria-label="Person entfernen"
+            >
+              Entfernen
+            </button>
+          </li>
+        }
+      </ul>
+    </div>
+
+    <ng-container dialogActions>
+      <button
+        type="button"
+        (click)="cancel()"
+        class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+      >
+        Abbrechen
+      </button>
+      <button
+        type="button"
+        (click)="saveTour()"
+        [disabled]="busy()"
+        class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+      >
+        Speichern
+      </button>
+    </ng-container>
+  </souffleur-dialog>
+}
+
+<!-- Gastspiel anlegen oder ändern. -->
+@if (editingStop() !== null) {
+  <souffleur-dialog
+    [heading]="editingStop() === 'neu' ? 'Gastspiel anlegen' : 'Gastspiel ändern'"
+    note="Ein Ort der Tournee: Spielstätte, Reise, Vorstellungen, Gage."
+    size="breit"
+    (closed)="cancel()"
+  >
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Spielstätte</span>
+        <select
+          [ngModel]="stopDraft().venueId"
+          (ngModelChange)="patchStop({ venueId: $event })"
+          aria-label="Spielstätte"
+          class="w-64 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          @for (venue of venues(); track venue.id) {
+            <option [ngValue]="venue.id">{{ venue.name }}@if (venue.city) {, {{ venue.city }}}</option>
+          }
+        </select>
+      </label>
+      @if (venues().length === 0) {
+        <a routerLink="/kontakte" class="pb-2 text-xs text-content-muted underline-offset-2 hover:underline">
+          Keine Spielstätte im Adressbuch — einen Kontakt mit der Rolle „Spielstätte“ anlegen
+        </a>
+      }
+
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Ansprechperson</span>
+        <select
+          [ngModel]="stopDraft().contactPersonId"
+          (ngModelChange)="patchStop({ contactPersonId: $event })"
+          aria-label="Ansprechperson"
+          class="w-52 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          <option [ngValue]="null">— niemand —</option>
+          @for (person of people(); track person.id) {
+            <option [ngValue]="person.id">{{ person.name }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Stand</span>
+        <select
+          [ngModel]="stopDraft().status"
+          (ngModelChange)="patchStop({ status: $event })"
+          aria-label="Stand"
+          class="w-40 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          @for (status of statuses(); track status.status) {
+            <option [ngValue]="status.status">{{ status.label }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Anreise</span>
+        <input
+          type="date"
+          [ngModel]="stopDraft().arrivalDate"
+          (ngModelChange)="patchStop({ arrivalDate: $event })"
+          aria-label="Anreise"
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Abreise</span>
+        <input
+          type="date"
+          [ngModel]="stopDraft().departureDate"
+          (ngModelChange)="patchStop({ departureDate: $event })"
+          aria-label="Abreise"
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+      <label class="flex items-center gap-2 pb-2 text-xs text-content-muted">
+        <input
+          type="checkbox"
+          [ngModel]="stopDraft().hostCoversTravel"
+          (ngModelChange)="patchStop({ hostCoversTravel: $event })"
+        />
+        <span>Gastgeber trägt die Reise</span>
+      </label>
+      <label class="flex items-center gap-2 pb-2 text-xs text-content-muted">
+        <input
+          type="checkbox"
+          [ngModel]="stopDraft().hostCoversAccommodation"
+          (ngModelChange)="patchStop({ hostCoversAccommodation: $event })"
+        />
+        <span>Gastgeber stellt das Hotel</span>
+      </label>
+    </div>
+
+    <!-- Die Vorstellungen: jede ein Eintrag im Kalender. -->
+    <div>
+      <div class="mb-1 flex items-center justify-between">
+        <span class="text-xs font-medium text-content-muted">Vorstellungen</span>
+        <button
+          type="button"
+          (click)="addPerformance()"
+          class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+        >
+          Vorstellung hinzufügen
+        </button>
+      </div>
+      @if (stopDraft().performances.length === 0) {
+        <p class="m-0 text-xs text-content-faint">Noch keine Vorstellung. Ohne sie steht nur die Reise im Kalender.</p>
+      }
+      <ul class="m-0 list-none space-y-1.5 p-0">
+        @for (performance of stopDraft().performances; track $index; let i = $index) {
+          <li class="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              [ngModel]="performance.date"
+              (ngModelChange)="patchPerformance(i, { date: $event })"
+              aria-label="Tag der Vorstellung"
+              class="rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+            />
+            <input
+              type="time"
+              [ngModel]="performance.time"
+              (ngModelChange)="patchPerformance(i, { time: $event })"
+              aria-label="Uhrzeit der Vorstellung"
+              class="rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+            />
+            <label class="flex items-center gap-1 text-xs text-content-muted">
+              <input
+                type="number"
+                min="1"
+                [ngModel]="performance.minutes"
+                (ngModelChange)="patchPerformance(i, { minutes: +$event })"
+                aria-label="Dauer in Minuten"
+                class="w-20 rounded-md border border-border bg-surface px-2 py-1 text-right text-sm text-content tabular"
+              />
+              <span>Min.</span>
+            </label>
+            <input
+              type="text"
+              [ngModel]="performance.note"
+              (ngModelChange)="patchPerformance(i, { note: $event })"
+              placeholder="Notiz"
+              aria-label="Notiz zur Vorstellung"
+              class="w-40 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+            />
+            <button
+              type="button"
+              (click)="removePerformance(i)"
+              class="cursor-pointer border-0 bg-transparent text-xs text-content-muted hover:text-content"
+              aria-label="Vorstellung entfernen"
+            >
+              Entfernen
+            </button>
+          </li>
+        }
+      </ul>
+    </div>
+
+    <!-- Finanzen: Gage als Zahl, Beleg als Verweis. -->
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Gage, brutto in Euro</span>
+        <input
+          type="text"
+          inputmode="decimal"
+          [ngModel]="stopDraft().fee"
+          (ngModelChange)="patchStop({ fee: $event })"
+          placeholder="z. B. 4200"
+          aria-label="Gage"
+          class="w-32 rounded-md border border-border bg-surface px-2 py-1.5 text-right text-sm text-content tabular"
+        />
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Beleg der Gagenrechnung</span>
+        <select
+          [ngModel]="stopDraft().voucherId"
+          (ngModelChange)="patchStop({ voucherId: $event })"
+          aria-label="Beleg"
+          class="w-72 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          <option [ngValue]="null">— noch nicht in Rechnung gestellt —</option>
+          @for (voucher of vouchers(); track voucher.id) {
+            <option [ngValue]="voucher.id">{{ voucher.label }} · {{ voucher.description }}</option>
+          }
+        </select>
+      </label>
+    </div>
+
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Notizen</span>
+      <textarea
+        rows="2"
+        [ngModel]="stopDraft().notes"
+        (ngModelChange)="patchStop({ notes: $event })"
+        aria-label="Notizen zum Gastspiel"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      ></textarea>
+    </label>
+
+    <!-- Website der Spielstätte, Anfahrt, Technikblatt im Netz. -->
+    <souffleur-lesezeichen
+      target="TourStop"
+      [targetId]="editingStop() === 'neu' ? null : editingStop()"
+      [ausstehend]="pendingStopBookmarks()"
+      (ausstehendChange)="pendingStopBookmarks.set($event)"
+    />
+
+    <ng-container dialogActions>
+      <button
+        type="button"
+        (click)="cancel()"
+        class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+      >
+        Abbrechen
+      </button>
+      <button
+        type="button"
+        (click)="saveStop()"
+        [disabled]="busy()"
+        class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+      >
+        Speichern
+      </button>
+    </ng-container>
+  </souffleur-dialog>
+}
+
+<!-- Löschen fragt nach, wie bei den Produktionen: Was weg ist, ist weg --
+     und bei einer Tournee gehen die Gastspiele samt Kalendereinträgen mit. -->
+@if (removingTour(); as tour) {
+  <souffleur-dialog heading="Tournee löschen?" [note]="tour.title" (closed)="removing.set(null)">
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+    <p class="m-0 text-sm text-content">
+      @if (tour.stops.length > 0) {
+        Die Tournee und ihre {{ tour.stops.length }} Gastspiele verschwinden, auch aus dem Kalender.
+      } @else {
+        Die Tournee hat noch keine Gastspiele und verschwindet ersatzlos.
+      }
+      Das lässt sich nicht rückgängig machen.
+    </p>
+    <button dialogActions type="button" (click)="removing.set(null)" class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content">
+      Abbrechen
+    </button>
+    <button dialogActions type="button" (click)="removeTour(tour)" class="cursor-pointer rounded-lg border-0 bg-critical px-3 py-2 text-sm font-semibold text-white">
+      Endgültig löschen
+    </button>
+  </souffleur-dialog>
+}
+
+@if (removingStop(); as stop) {
+  <souffleur-dialog heading="Gastspiel löschen?" [note]="stop.venueName" (closed)="removing.set(null)">
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+    <p class="m-0 text-sm text-content">
+      Das Gastspiel verschwindet mit seinen Vorstellungen, auch aus dem Kalender. Das lässt sich nicht
+      rückgängig machen. Ein abgesagtes Gastspiel bleibt dagegen lesbar — dafür den Stand ändern.
+    </p>
+    <button dialogActions type="button" (click)="removing.set(null)" class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content">
+      Abbrechen
+    </button>
+    <button dialogActions type="button" (click)="removeStop(stop)" class="cursor-pointer rounded-lg border-0 bg-critical px-3 py-2 text-sm font-semibold text-white">
+      Endgültig löschen
+    </button>
+  </souffleur-dialog>
+}

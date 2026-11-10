@@ -1,0 +1,200 @@
+<div class="p-6">
+  <header class="mb-5 flex items-start justify-between gap-4">
+    <div>
+      <h1 class="font-display text-2xl font-bold tracking-tight">
+        {{ organization()?.name ?? 'souffleur' }}
+      </h1>
+      <p class="mt-1 text-sm text-content-muted">
+        {{ today | date: 'EEEE, d. MMMM y' : undefined : 'de' }}
+      </p>
+    </div>
+
+    <!-- Das Zahnrad: Hier findet man wieder, was man ausgeblendet hat. -->
+    <div class="relative" data-einrichten>
+      <button
+        type="button"
+        (click)="einrichten.set(!einrichten())"
+        [attr.aria-expanded]="einrichten()"
+        aria-haspopup="true"
+        aria-label="Übersicht einrichten"
+        title="Übersicht einrichten"
+        class="grid size-8 cursor-pointer place-items-center rounded-md border-0 bg-transparent text-content-muted hover:bg-surface-sunken hover:text-content"
+      >
+        <souffleur-icon name="zahnrad" [size]="18" />
+      </button>
+
+      @if (einrichten()) {
+        <div
+          role="region"
+          aria-label="Übersicht einrichten"
+          class="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-lg border border-border bg-surface-raised text-content shadow-xl"
+        >
+          <div class="border-b border-border px-3 py-2 text-sm font-semibold">
+            Übersicht einrichten
+          </div>
+
+          <ul class="m-0 list-none p-0" aria-label="Blöcke">
+            @for (block of alle(); track block.key) {
+              <li class="border-b border-border last:border-b-0">
+                <label
+                  class="flex cursor-pointer items-center gap-2.5 px-3 py-2 text-sm hover:bg-surface-sunken"
+                >
+                  <input
+                    type="checkbox"
+                    [checked]="!ausgeblendet().has(block.key)"
+                    (change)="zeige(block, $any($event.target).checked)"
+                    class="size-4 accent-brand"
+                  />
+                  <span class="min-w-0 flex-1 truncate">{{ block.label }}</span>
+                  @if (ausgeblendet().has(block.key)) {
+                    <span class="text-xs text-content-faint">ausgeblendet</span>
+                  }
+                </label>
+              </li>
+            }
+          </ul>
+
+          <div class="flex items-center justify-between border-t border-border px-3 py-2">
+            <span class="text-[11px] text-content-muted">Reihenfolge: ziehen am Griff.</span>
+            <button
+              type="button"
+              (click)="zuruecksetzen()"
+              class="cursor-pointer border-0 bg-transparent p-0 text-xs text-brand hover:underline"
+            >
+              Zurücksetzen
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+    <p class="text-sm text-content-muted">Einen Moment…</p>
+  } @else {
+    <!-- Dieselben Kacheln wie in den Modulen, hier alle untereinander.
+         Was ein Haus abgeschaltet hat, fehlt auch hier. Die Blöcke lassen
+         sich am Griff ziehen; mit der Tastatur Strg/Cmd und Pfeil. -->
+    <div
+      souffleurSortierbar
+      (neueReihenfolge)="umsortiert($event)"
+      aria-keyshortcuts="Control+ArrowUp Control+ArrowDown"
+      class="flex flex-col gap-6"
+    >
+      @for (block of bloecke(); track block.key) {
+        <section
+          [attr.data-sortier-id]="block.key"
+          [attr.data-sortier-name]="block.label"
+          [attr.aria-label]="block.label"
+        >
+          @if (block.path) {
+            <souffleur-metric-strip [module]="block.path" [heading]="block.label">
+              <button
+                type="button"
+                data-sortier-griff
+                [attr.aria-label]="block.label + ' verschieben'"
+                title="Ziehen oder Strg/Cmd und Pfeiltaste ändert die Reihenfolge"
+                class="grid size-6 cursor-grab place-items-center self-center rounded border-0 bg-transparent text-content-faint hover:text-brand"
+              >
+                <souffleur-icon name="griff" [size]="14" />
+              </button>
+              <souffleur-block-menue
+                data-block-menue
+                [label]="block.label"
+                [erster]="$first"
+                [letzter]="$last"
+                (nachOben)="verschiebe(block, -1)"
+                (nachUnten)="verschiebe(block, 1)"
+                (ausblenden)="ausblenden(block)"
+              />
+            </souffleur-metric-strip>
+          } @else {
+            <div class="mb-2 flex items-center gap-2">
+              <button
+                type="button"
+                data-sortier-griff
+                [attr.aria-label]="block.label + ' verschieben'"
+                title="Ziehen oder Strg/Cmd und Pfeiltaste ändert die Reihenfolge"
+                class="grid size-6 cursor-grab place-items-center self-center rounded border-0 bg-transparent text-content-faint hover:text-brand"
+              >
+                <souffleur-icon name="griff" [size]="14" />
+              </button>
+              <span class="text-sm font-semibold">
+                <a routerLink="/finanzen" class="text-content no-underline hover:text-brand">
+                  {{ block.label }}
+                </a>
+              </span>
+              <souffleur-block-menue
+                class="ml-auto"
+                [label]="block.label"
+                [erster]="$first"
+                [letzter]="$last"
+                (nachOben)="verschiebe(block, -1)"
+                (nachUnten)="verschiebe(block, 1)"
+                (ausblenden)="ausblenden(block)"
+              />
+            </div>
+
+            <div class="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+              <section class="rounded-xl border border-border bg-surface-raised p-4">
+                <h2 class="mb-3 text-sm font-semibold">Zuletzt gebucht</h2>
+                @if (entries().length) {
+                  <ul class="flex flex-col gap-2.5">
+                    @for (entry of entries(); track entry.id) {
+                      <li
+                        class="flex items-baseline justify-between gap-3 border-b border-border pb-2.5 last:border-0 last:pb-0"
+                      >
+                        <div class="min-w-0">
+                          <span class="block truncate text-sm">{{ entry.description }}</span>
+                          <span class="text-xs text-content-muted tabular">
+                            Nr. {{ entry.number }} · {{ entry.date | date: 'dd.MM.yyyy' }}
+                            @if (!entry.isCommitted) {
+                              <span
+                                class="ml-1.5 rounded bg-accent-wash px-1.5 py-0.5 font-semibold text-accent"
+                                >Entwurf</span
+                              >
+                            }
+                          </span>
+                        </div>
+                        <span class="shrink-0 font-mono text-sm tabular">
+                          {{ entry.total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="text-sm text-content-muted">Noch nichts gebucht.</p>
+                }
+              </section>
+
+              <section class="rounded-xl border border-border bg-surface-raised p-4">
+                <h2 class="mb-3 text-sm font-semibold">Belege ohne Buchung</h2>
+                @if (vouchers().length) {
+                  <ul class="flex flex-col gap-2.5">
+                    @for (voucher of vouchers().slice(0, 6); track voucher.id) {
+                      <li
+                        class="flex items-baseline justify-between gap-3 border-b border-border pb-2.5 last:border-0 last:pb-0"
+                      >
+                        <div class="min-w-0">
+                          <span class="block truncate text-sm">{{ voucher.description }}</span>
+                          <span class="text-xs text-content-muted tabular">
+                            {{ voucher.label }} · {{ voucher.date | date: 'dd.MM.yyyy' }}
+                          </span>
+                        </div>
+                        <span class="shrink-0 font-mono text-sm tabular">
+                          {{ voucher.grossAmount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="text-sm text-content-muted">Alles kontiert.</p>
+                }
+              </section>
+            </div>
+          }
+        </section>
+      }
+    </div>
+  }
+</div>

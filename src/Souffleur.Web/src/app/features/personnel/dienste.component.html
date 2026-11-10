@@ -1,0 +1,307 @@
+<div class="flex h-full flex-col p-6">
+  <header class="mb-4">
+    <h1 class="font-display text-2xl font-bold tracking-tight">Personal</h1>
+    <p class="mt-1 text-sm text-content-muted">
+      Wer in den nächsten vier Wochen Dienst hat, was gearbeitet wurde, wer fehlt, und was daraus
+      für die Künstlersozialkasse folgt.
+    </p>
+  </header>
+
+  <souffleur-metric-strip module="personal" class="mb-5 block shrink-0" />
+
+  @if (loading()) {
+    <p class="text-sm text-content-muted">Einen Moment…</p>
+  } @else {
+    <div class="mb-4 flex items-center gap-1" role="group" aria-label="Ansicht">
+      @for (
+        option of [
+          { key: 'dienste', label: 'Dienste' },
+          { key: 'zeiten', label: 'Zeiten' },
+          { key: 'abwesenheiten', label: 'Abwesenheiten' },
+          { key: 'ksk', label: 'Künstlersozialabgabe' },
+        ];
+        track option.key
+      ) {
+        <button
+          type="button"
+          (click)="view.set($any(option.key))"
+          [attr.aria-pressed]="view() === option.key"
+          class="cursor-pointer rounded-md border px-2.5 py-1 text-xs"
+          [class.bg-brand]="view() === option.key"
+          [class.text-brand-contrast]="view() === option.key"
+          [class.border-brand]="view() === option.key"
+          [class.border-border]="view() !== option.key"
+          [class.text-content]="view() !== option.key"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+
+    @if (view() === 'zeiten') {
+      <souffleur-zeiten />
+    } @else if (view() === 'abwesenheiten') {
+      <souffleur-abwesenheiten />
+    } @else if (view() === 'ksk') {
+      <souffleur-ksk />
+    } @else if (blocked()) {
+      <div class="rounded-xl border border-border bg-surface-raised p-6">
+        <h2 class="text-base font-semibold">Der Kalender ist in diesem Haus nicht eingeschaltet</h2>
+        <p class="mt-2 text-sm text-content-muted">
+          Dienste entstehen an Terminen. Ohne Kalender gibt es nichts einzuteilen.
+        </p>
+      </div>
+    } @else {
+      @if (problems().length > 0 && filling() === null) {
+        <souffleur-meldung class="mb-3 max-w-4xl" [texte]="problems()" />
+      }
+
+      @if (open() > 0) {
+        <!-- Die Lücke zuerst: Sie ist der Grund, warum es diesen Plan gibt. -->
+        <div class="mb-4 max-w-4xl rounded-xl border border-accent bg-surface-raised p-4">
+          <p class="m-0 text-sm font-medium text-accent">
+            {{ open() }} Dienste sind bis {{ until | date: 'd. MMMM' : undefined : 'de' }} nicht
+            besetzt
+          </p>
+          <p class="m-0 mt-1 max-w-prose text-xs text-content-muted">
+            Gerechnet gegen den Bedarf der jeweiligen Terminart. Eingeteilt wird am Termin selbst,
+            im Kalender.
+          </p>
+        </div>
+      }
+
+      @if (!days().length) {
+        <div class="rounded-xl border border-border bg-surface-raised p-6">
+          <h2 class="text-base font-semibold">Nichts zu planen</h2>
+          <p class="mt-2 max-w-prose text-sm text-content-muted">
+            Bis {{ until | date: 'd. MMMM' : undefined : 'de' }} ist niemand eingeteilt, und keine
+            Terminart hat einen Bedarf. Der Bedarf steht in den Einstellungen unter „Bedarf je
+            Terminart“ — damit fällt auf, wo noch jemand fehlt.
+          </p>
+        </div>
+      } @else {
+        <!-- Mindesthöhe: Auf einem Laptop füllen die Kennzahlen sonst den
+             Bildschirm, die Liste bekäme keine Höhe und wäre unerreichbar.
+             So scrollt dann die Seite, und darunter die Liste. -->
+        <div class="min-h-96 flex-1 overflow-auto">
+          <ul class="flex max-w-4xl list-none flex-col gap-4 p-0">
+            @for (day of days(); track day.date) {
+              <li>
+                <h2 class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-content-muted">
+                  {{ day.date | date: 'EEEE, d. MMMM' : undefined : 'de' }}
+                </h2>
+
+                <ul class="flex list-none flex-col gap-2 p-0">
+                  @for (duty of day.entries; track duty.startsAt + duty.title) {
+                    <li
+                      class="rounded-xl border bg-surface-raised px-4 py-3"
+                      [class.border-accent]="duty.open > 0"
+                      [class.border-border]="duty.open === 0"
+                    >
+                      <div class="flex items-baseline gap-2">
+                        <span class="font-mono text-sm tabular">
+                          {{ duty.startsAt | date: 'HH:mm' }}
+                        </span>
+                        <span class="min-w-0 flex-1 truncate text-sm font-medium">
+                          {{ duty.title }}
+                        </span>
+                        @if (duty.location) {
+                          <span class="shrink-0 text-xs text-content-muted">
+                            {{ duty.location }}
+                          </span>
+                        }
+                      </div>
+
+                      @if (duty.assigned.length) {
+                        <ul class="mt-2 flex list-none flex-wrap gap-x-4 gap-y-1 p-0">
+                          @for (person of duty.assigned; track person.contactId) {
+                            <li class="flex items-baseline gap-1.5 text-xs">
+                              <span
+                                [class.line-through]="person.declined"
+                                [class.text-content-faint]="person.declined"
+                              >
+                                {{ person.name }}
+                              </span>
+                              @if (person.function) {
+                                <span class="text-content-muted">({{ person.function }})</span>
+                              }
+                              <span
+                                class="rounded px-1.5 py-0.5 text-[11px] font-medium"
+                                [class.bg-positive-wash]="person.statusLabel === 'Zugesagt'"
+                                [class.text-positive]="person.statusLabel === 'Zugesagt'"
+                                [class.bg-critical-wash]="person.declined"
+                                [class.text-critical]="person.declined"
+                                [class.bg-surface-sunken]="
+                                  person.statusLabel !== 'Zugesagt' && !person.declined
+                                "
+                                [class.text-content-muted]="
+                                  person.statusLabel !== 'Zugesagt' && !person.declined
+                                "
+                              >
+                                {{ person.statusLabel }}
+                              </span>
+
+                              @if (duty.eventId) {
+                                <button
+                                  type="button"
+                                  (click)="unassign(duty, person.contactId)"
+                                  [disabled]="busy()"
+                                  [attr.aria-label]="person.name + ' nicht mehr einteilen'"
+                                  class="cursor-pointer border-0 bg-transparent p-0 text-xs text-content-faint hover:text-critical disabled:opacity-60"
+                                >
+                                  ✕
+                                </button>
+                              }
+                            </li>
+                          }
+                        </ul>
+                      }
+
+                      @if (duty.slots.length) {
+                        <ul class="mt-2 flex list-none flex-wrap gap-2 p-0">
+                          @for (slot of duty.slots; track slot.functionId) {
+                            <li
+                              class="rounded px-1.5 py-0.5 text-[11px] font-medium"
+                              [class.bg-accent-wash]="slot.open > 0"
+                              [class.text-accent]="slot.open > 0"
+                              [class.bg-surface-sunken]="slot.open === 0"
+                              [class.text-content-muted]="slot.open === 0"
+                            >
+                              {{ slot.function }} {{ slot.assigned }}/{{ slot.required }}
+                              @if (slot.open > 0) {
+                                <span>· {{ slot.open }} offen</span>
+
+                                @if (duty.eventId) {
+                                  <button
+                                    type="button"
+                                    (click)="startFilling(duty, slot)"
+                                    [attr.aria-label]="slot.function + ' besetzen'"
+                                    class="ml-1 cursor-pointer border-0 bg-transparent p-0 text-[11px] font-semibold underline-offset-2 hover:underline"
+                                  >
+                                    besetzen
+                                  </button>
+                                } @else {
+                                  <!-- Serienvorkommen: Die Einteilung hängt an
+                                       der Serie, nicht am einzelnen Abend. -->
+                                  <span class="ml-1 text-[11px] text-content-faint"
+                                    >· in der Serie einteilen</span
+                                  >
+                                }
+                              }
+                            </li>
+                          }
+                        </ul>
+                      }
+                    </li>
+                  }
+                </ul>
+              </li>
+            }
+          </ul>
+        </div>
+
+        <footer class="mt-3 text-sm text-content-muted">
+          {{ total() }} Dienste bis {{ until | date: 'd. MMMM y' : undefined : 'de' }}
+          @if (open() > 0) {
+            <span class="text-accent">· {{ open() }} offen</span>
+          }
+        </footer>
+      }
+    }
+  }
+</div>
+
+@if (filling(); as open) {
+  <souffleur-dialog
+    [heading]="open.slot.function + ' besetzen'"
+    [note]="open.duty.title"
+    (closed)="cancel()"
+  >
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Wer</span>
+      <select
+        [ngModel]="chosen()"
+        (ngModelChange)="chosen.set($event); conflicts.set([])"
+        aria-label="Wer"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      >
+        <option value="">— wählen —</option>
+        @for (person of available(); track person.id) {
+          <option [value]="person.id">
+            {{ person.name }}
+            @if (person.position) {
+              · {{ person.position }}
+            }
+          </option>
+        }
+      </select>
+    </label>
+
+    @if (open.slot.groupName) {
+      @if (gruppeLeer()) {
+        <p class="m-0 text-xs text-content-muted">
+          In „{{ open.slot.groupName }}" ist niemand mit einem Kontakt verbunden — darum stehen alle
+          zur Wahl.
+        </p>
+      } @else {
+        <label class="flex items-center gap-2 text-xs text-content-muted">
+          <input type="checkbox" [ngModel]="alleZeigen()" (ngModelChange)="alleZeigen.set($event)" />
+          <span>Auch Leute außerhalb von „{{ open.slot.groupName }}" zeigen</span>
+        </label>
+      }
+    }
+
+    @if (conflicts().length > 0) {
+      <!-- Nicht abgelehnt, sondern angehalten: Die Disposition weiß manchmal,
+           dass sie doppelt belegt, und löst es später auf. -->
+      <div class="rounded-md bg-accent-wash px-3 py-2 text-sm text-accent">
+        <p class="m-0 font-medium">Diese Person steht zur selben Zeit woanders:</p>
+        <ul class="m-0 mt-1 list-none space-y-0.5 p-0 text-xs">
+          @for (conflict of conflicts(); track $index) {
+            <li>{{ conflictTime(conflict) }} — {{ conflict.title }}</li>
+          }
+        </ul>
+      </div>
+    }
+
+    <p class="m-0 max-w-prose text-xs text-content-muted">
+      Eingeteilt heißt vorgemerkt, nicht zugesagt. Die Zusage trägt die Disposition am Termin selbst
+      nach — souffleur verschickt nichts.
+    </p>
+
+    <button
+      dialogActions
+      type="button"
+      (click)="cancel()"
+      class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+    >
+      Abbrechen
+    </button>
+
+    @if (conflicts().length > 0) {
+      <button
+        dialogActions
+        type="button"
+        (click)="assign(true)"
+        [disabled]="busy()"
+        class="cursor-pointer rounded-md border border-accent bg-transparent px-3 py-1.5 text-sm text-accent disabled:opacity-60"
+      >
+        Trotzdem einteilen
+      </button>
+    }
+
+    <button
+      dialogActions
+      type="button"
+      (click)="assign()"
+      [disabled]="busy() || !chosen()"
+      class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
+    >
+      {{ busy() ? 'Wird eingeteilt …' : 'Einteilen' }}
+    </button>
+  </souffleur-dialog>
+}

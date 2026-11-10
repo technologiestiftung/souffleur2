@@ -1,0 +1,439 @@
+<div class="h-full overflow-auto p-5">
+  <div class="mb-4">
+    <h1 class="m-0 font-display text-lg font-semibold">Dokumente</h1>
+    <p class="m-0 mt-1 max-w-prose text-sm text-content-muted">
+      Die Ablage des Hauses. Was hier liegt, sehen alle — außer es ist auf Gruppen eingeschränkt.
+      Verknüpfen lässt sich ein Dokument mit Kontakten, Aufgaben, Terminen, Buchungen und Belegen.
+    </p>
+  </div>
+
+  @if (darfAblegen()) {
+    <souffleur-drop-zone
+      class="mb-4 block"
+      [multiple]="true"
+      (filesChange)="dateienGewaehlt($event)"
+      [accept]="endungen"
+      [maxBytes]="hoechstens"
+      label="Dokumente hierher ziehen — gern mehrere auf einmal"
+      inputLabel="Dokumentdateien"
+      hint="PDF, Office, Bilder, Tabellen, Mitschnitte · je bis 100 MB"
+    />
+  }
+
+  @if (hinweis()) {
+    <souffleur-meldung class="mb-3" art="hinweis" [texte]="hinweis()" />
+  }
+  @if (problems().length > 0 && bogen() === null) {
+    <souffleur-meldung class="mb-3" [texte]="problems()" />
+  }
+
+  <div class="mb-3 flex flex-wrap items-center gap-2">
+    <label class="flex min-w-48 grow items-center">
+      <span class="sr-only">Suchen</span>
+      <input
+        type="search"
+        placeholder="Suchen in Name, Notiz, Schlagwort …"
+        [ngModel]="suche()"
+        (ngModelChange)="suche.set($event)"
+        (keyup.enter)="laden()"
+        (search)="laden()"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      />
+    </label>
+    <!-- Die Filter stehen links; hier nur, was gerade gilt -- auch bei zugeklappter Leiste. -->
+    @if (artFilter(); as art) {
+      <button type="button" (click)="artFilter.set('')" class="flex cursor-pointer items-center gap-1.5 rounded-full border border-brand bg-brand-wash px-2.5 py-1 text-xs text-brand hover:bg-surface-sunken" [attr.aria-label]="'Filter ' + artNamen[art] + ' aufheben'">
+        {{ artNamen[art] }} <span aria-hidden="true">✕</span>
+      </button>
+    }
+    @if (schlagwort(); as tag) {
+      <button type="button" (click)="schlagwort.set(''); laden()" class="flex cursor-pointer items-center gap-1.5 rounded-full border border-brand bg-brand-wash px-2.5 py-1 text-xs text-brand hover:bg-surface-sunken" [attr.aria-label]="'Filter ' + tag + ' aufheben'">
+        # {{ tag }} <span aria-hidden="true">✕</span>
+      </button>
+    }
+    @if (zielFilter(); as ziel) {
+      <button type="button" (click)="zielFilter.set('')" class="flex cursor-pointer items-center gap-1.5 rounded-full border border-brand bg-brand-wash px-2.5 py-1 text-xs text-brand hover:bg-surface-sunken" aria-label="Filter Verknüpfung aufheben">
+        {{ ziel === 'ohne' ? 'ohne Verknüpfung' : 'an ' + zielNamen[ziel] }} <span aria-hidden="true">✕</span>
+      </button>
+    }
+    @if (ordnerFilter()) {
+      <button type="button" (click)="ordnerFilter.set(''); laden()" class="flex cursor-pointer items-center gap-1.5 rounded-full border border-brand bg-brand-wash px-2.5 py-1 text-xs text-brand hover:bg-surface-sunken" aria-label="Filter Ordner aufheben">
+        Ordner <span aria-hidden="true">✕</span>
+      </button>
+    }
+  </div>
+
+  <table class="w-full border-collapse text-sm">
+    <thead>
+      <tr class="border-b border-border text-left text-xs text-content-muted">
+        <th class="py-1.5 font-medium">Dokument</th>
+        <th class="hidden py-1.5 font-medium lg:table-cell">Verknüpft mit</th>
+        <th class="hidden w-28 py-1.5 font-medium sm:table-cell">Abgelegt</th>
+        <th class="hidden w-20 py-1.5 text-right font-medium md:table-cell">Größe</th>
+        <th class="w-24 py-1.5"><span class="sr-only">Aktionen</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (doc of sichtbar(); track doc.id) {
+        <tr class="border-b border-border align-top">
+          <td class="py-2 pr-3">
+            <div class="flex gap-3">
+              <button
+                type="button"
+                (click)="ansehen(doc)"
+                class="cursor-pointer rounded-md border-0 bg-transparent p-0 hover:opacity-80"
+                [attr.aria-label]="doc.name + ' ansehen'"
+              >
+                <souffleur-vorschaubild [doc]="doc" />
+              </button>
+              <div class="min-w-0 flex-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    (click)="ansehen(doc)"
+                    class="cursor-pointer border-0 bg-transparent p-0 text-left text-sm font-medium text-content hover:text-brand hover:underline"
+                  >
+                    {{ doc.name }}
+                  </button>
+                  @if (doc.isRestricted) {
+                    <span
+                      class="flex items-center gap-1 rounded bg-surface-sunken px-1.5 py-0.5 text-[11px] text-content-muted"
+                      title="Nicht für alle sichtbar"
+                    >
+                      <souffleur-icon name="zugang" [size]="11" />
+                      @for (g of doc.groups; track g.id; let last = $last) {
+                        {{ g.name }}@if (!last) {, }
+                      } @empty {
+                        eingeschränkt
+                      }
+                    </span>
+                  }
+                </div>
+                @if (doc.folderPath) {
+                  <!-- Wo es in der File Station liegt -- dort sucht das Haus zuerst. -->
+                  <div class="mt-0.5 truncate font-mono text-[11px] text-content-faint" [title]="doc.folderPath">
+                    {{ doc.folderPath }}
+                  </div>
+                }
+                @if (doc.isMissing) {
+                  <div class="mt-0.5 text-[11px] text-accent">
+                    fehlt im Ordner — verschoben oder gelöscht? Das nächste Einlesen findet es wieder, wenn es noch da ist.
+                  </div>
+                }
+                @if (doc.tags.length) {
+                  <div class="mt-1 flex flex-wrap gap-1">
+                    @for (tag of doc.tags; track tag) {
+                      <button
+                        type="button"
+                        (click)="schlagwort.set(tag); laden()"
+                        class="cursor-pointer rounded border-0 bg-brand-wash px-1.5 py-0.5 text-[11px] text-brand"
+                      >
+                        {{ tag }}
+                      </button>
+                    }
+                  </div>
+                }
+                @if (doc.note) {
+                  <div class="mt-1 text-xs text-content-muted">{{ doc.note }}</div>
+                }
+                <!-- Auf schmalen Bildschirmen fehlen die Spalten -- das Nötigste steht hier. -->
+                <div class="mt-0.5 text-[11px] text-content-faint sm:hidden">
+                  {{ doc.createdAt | date: 'd.M.yyyy' }} · {{ groesse(doc.sizeInBytes) }}
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="hidden py-2 pr-3 lg:table-cell">
+            <div class="flex flex-col gap-0.5 text-xs">
+              @for (link of doc.links; track link.id) {
+                <span><span class="text-content-faint">{{ zielNamen[link.targetKey] }}:</span> {{ link.label }}</span>
+              } @empty {
+                <span class="text-content-faint">—</span>
+              }
+            </div>
+          </td>
+          <td class="hidden py-2 text-xs text-content-muted sm:table-cell">{{ doc.createdAt | date: 'd.M.yyyy' }}</td>
+          <td class="hidden py-2 text-right text-xs text-content-muted tabular md:table-cell">{{ groesse(doc.sizeInBytes) }}</td>
+          <td class="py-2 text-right whitespace-nowrap">
+            <a
+              [href]="fileUrl(doc)"
+              class="inline-grid size-7 place-items-center rounded-md text-content-muted no-underline hover:bg-surface-sunken hover:text-brand"
+              [attr.aria-label]="doc.name + ' herunterladen'"
+              title="herunterladen"
+            >
+              <souffleur-icon name="download" [size]="15" />
+            </a>
+            @if (darfAendern(doc)) {
+              <button
+                type="button"
+                (click)="bearbeiten(doc)"
+                class="ml-1 cursor-pointer border-0 bg-transparent text-sm text-brand hover:underline"
+                [attr.aria-label]="doc.name + ' ändern'"
+              >
+                ändern
+              </button>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="5" class="py-6 text-sm text-content-muted">
+            @if (loading()) {
+              Wird geladen …
+            } @else if (suche() || filterAktiv()) {
+              Nichts gefunden.
+              @if (filterAktiv()) {
+                <button type="button" (click)="filterZuruecksetzen()" class="ml-1 cursor-pointer border-0 bg-transparent p-0 text-sm text-brand hover:underline">
+                  Filter aufheben
+                </button>
+              }
+            } @else {
+              Noch nichts abgelegt.
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+@if (vorschauStelle() !== null && sichtbar().length) {
+  <souffleur-vorschau
+    [docs]="sichtbar()"
+    [position]="vorschauStelle()!"
+    (positionChange)="vorschauStelle.set($event)"
+    [darfAendern]="vorschauDarfAendern()"
+    (aendern)="ausVorschauAendern($event)"
+    (closed)="vorschauStelle.set(null)"
+  />
+}
+
+@if (bogen(); as b) {
+  <souffleur-dialog
+    [heading]="bearbeitet() ? 'Dokument ändern' : 'Dokument ablegen'"
+    [note]="bearbeitet()?.originalName ?? (dateien().length === 1 ? dateien()[0].name : dateien().length + ' Dateien')"
+    size="breit"
+    (closed)="schliessen()"
+  >
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    @if (!bearbeitet() && dateien().length > 1) {
+      <!-- Mehrere: Jede behält ihren Namen; Schlagworte und Sichtbarkeit gelten für alle. -->
+      <ul class="m-0 flex max-h-48 list-none flex-col gap-1 overflow-y-auto rounded-md border border-border p-2" aria-label="Dateien">
+        @for (f of dateien(); track f) {
+          <li class="flex items-center gap-2 text-sm">
+            <span class="min-w-0 flex-1 truncate">{{ f.name }}</span>
+            <span class="shrink-0 text-xs text-content-faint tabular">{{ groesse(f.size) }}</span>
+            <button
+              type="button"
+              (click)="dateiEntfernen(f)"
+              [disabled]="busy()"
+              [attr.aria-label]="f.name + ' nicht ablegen'"
+              class="cursor-pointer border-0 bg-transparent text-xs text-content-faint hover:text-critical"
+            >
+              ✕
+            </button>
+          </li>
+        }
+      </ul>
+      <p class="m-0 text-xs text-content-muted">
+        Jede Datei behält ihren Namen. Schlagworte, Notiz und wer es sehen darf gelten für alle.
+      </p>
+    }
+
+    @if (!bearbeitet() && ordner().length) {
+      <!-- Nur beim Ablegen: Wo eine Datei liegt, bestimmt danach die File Station. -->
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Ablegen in</span>
+        <select
+          [ngModel]="b.folder"
+          (ngModelChange)="aendern({ folder: $event })"
+          aria-label="Ablegen in"
+          class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          <option value="">
+            {{ standardOrdner() ? 'Standard: ' + standardOrdner()!.path : 'bei souffleur' }}
+          </option>
+          @for (o of ordner(); track o.id) {
+            <option [value]="o.id">{{ o.name }} — {{ o.path }}</option>
+          }
+          <option value="intern">bei souffleur, nicht auf der Synology</option>
+        </select>
+      </label>
+    } @else if (bearbeitet()?.folderPath) {
+      <p class="m-0 font-mono text-xs text-content-muted">{{ bearbeitet()!.folderPath }}</p>
+    }
+
+    <div class="flex flex-wrap items-end gap-3">
+      @if (bearbeitet() || dateien().length <= 1) {
+      <label class="block grow">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Name</span>
+        <input
+          type="text"
+          [ngModel]="b.name"
+          (ngModelChange)="aendern({ name: $event })"
+          class="w-full min-w-56 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+      }
+      <label class="block grow">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Schlagworte, durch Komma getrennt</span>
+        <input
+          type="text"
+          list="dokument-schlagworte"
+          [ngModel]="b.tags"
+          (ngModelChange)="aendern({ tags: $event })"
+          placeholder="vertrag, gastspiel"
+          class="w-full min-w-56 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+        <datalist id="dokument-schlagworte">
+          @for (tag of schlagworte(); track tag) {
+            <option [value]="tag"></option>
+          }
+        </datalist>
+      </label>
+    </div>
+
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Notiz</span>
+      <input
+        type="text"
+        [ngModel]="b.note"
+        (ngModelChange)="aendern({ note: $event })"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      />
+    </label>
+
+    <fieldset class="m-0 border-0 p-0">
+      <legend class="mb-1 p-0 text-xs font-medium text-content-muted">Wer darf es sehen?</legend>
+      <div class="flex flex-wrap gap-4 text-sm">
+        <label class="flex items-center gap-2">
+          <input type="radio" name="sichtbar" [checked]="!b.restricted" (change)="aendern({ restricted: false })" />
+          alle
+        </label>
+        <label class="flex items-center gap-2">
+          <input type="radio" name="sichtbar" [checked]="b.restricted" (change)="aendern({ restricted: true })" />
+          nur bestimmte Gruppen
+        </label>
+      </div>
+      @if (b.restricted) {
+        <div class="mt-2 flex flex-wrap gap-x-4 gap-y-1 pl-6 text-sm">
+          @for (g of gruppen(); track g.id) {
+            <label class="flex items-center gap-2">
+              <input
+                type="checkbox"
+                [checked]="b.groupIds.includes(g.id)"
+                (change)="aendern({ groupIds: umschalten(b.groupIds, g.id) })"
+              />
+              {{ g.name }}
+            </label>
+          } @empty {
+            <span class="text-xs text-content-muted">
+              Es gibt noch keine Gruppen — anzulegen unter Einstellungen → Zugänge → Gruppen.
+            </span>
+          }
+        </div>
+        <p class="m-0 mt-1 pl-6 text-xs text-content-faint">
+          Wer es ablegt, sieht es immer — ebenso, wer fremde Dokumente verwalten darf.
+        </p>
+      }
+    </fieldset>
+
+    @if (bearbeitet(); as doc) {
+      <!-- Woher es kommt, was dazugehört: die Quelle im Netz, die Seite des Verlags. -->
+      <souffleur-lesezeichen class="border-t border-border pt-3" target="Document" [targetId]="doc.id" />
+
+      <fieldset class="m-0 border-0 border-t border-border p-0 pt-3">
+        <legend class="mb-1 p-0 text-xs font-medium text-content-muted">Verknüpft mit</legend>
+        <ul class="m-0 mb-2 flex list-none flex-col gap-1 p-0 text-sm">
+          @for (link of doc.links; track link.id) {
+            <li class="flex items-center gap-2">
+              <span class="text-xs text-content-faint">{{ zielNamen[link.targetKey] }}</span>
+              <span>{{ link.label }}</span>
+              <button
+                type="button"
+                (click)="loesen(link.id)"
+                [attr.aria-label]="link.label + ' lösen'"
+                class="cursor-pointer border-0 bg-transparent text-xs text-content-faint hover:text-critical"
+              >
+                ✕
+              </button>
+            </li>
+          } @empty {
+            <li class="text-xs text-content-faint">noch nichts</li>
+          }
+        </ul>
+        <div class="flex flex-wrap items-end gap-2">
+          <select
+            [ngModel]="zielArt()"
+            (ngModelChange)="zielArtWechseln($event)"
+            aria-label="Art der Verknüpfung"
+            class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          >
+            @for (art of zielArten; track art) {
+              <option [value]="art">{{ zielNamen[art] }}</option>
+            }
+          </select>
+          <select
+            [ngModel]="gewaehlt()"
+            (ngModelChange)="gewaehlt.set($event)"
+            aria-label="Verknüpfen mit"
+            class="min-w-64 grow rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          >
+            <option value="">— wählen —</option>
+            @for (k of kandidaten(); track k.id) {
+              <option [value]="k.id">{{ k.label }}</option>
+            }
+          </select>
+          <button
+            type="button"
+            (click)="verknuepfen()"
+            [disabled]="!gewaehlt()"
+            class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content disabled:opacity-50"
+          >
+            Verknüpfen
+          </button>
+        </div>
+      </fieldset>
+    }
+
+    @if (bearbeitet()) {
+      <button
+        dialogActions
+        type="button"
+        (click)="wegwerfen()"
+        [disabled]="busy()"
+        class="mr-auto cursor-pointer rounded-md border border-critical bg-transparent px-3 py-1.5 text-sm text-critical disabled:opacity-60"
+      >
+        Wegwerfen
+      </button>
+    }
+    <button
+      dialogActions
+      type="button"
+      (click)="schliessen()"
+      class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+    >
+      Abbrechen
+    </button>
+    <button
+      dialogActions
+      type="button"
+      (click)="speichern()"
+      [disabled]="busy()"
+      class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-semibold text-brand-contrast disabled:opacity-60"
+    >
+      {{
+        busy()
+          ? (fortschritt() || 'Wird gespeichert …')
+          : bearbeitet()
+            ? 'Speichern'
+            : dateien().length > 1
+              ? dateien().length + ' Dateien ablegen'
+              : 'Ablegen'
+      }}
+    </button>
+  </souffleur-dialog>
+}

@@ -1,0 +1,362 @@
+<div class="flex h-full min-h-0 flex-col">
+  <souffleur-metric-strip module="kalender" class="block shrink-0 border-b border-border p-4" />
+
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-2.5">
+    <!-- Die Ansicht zuerst: Sie bestimmt, was die Knöpfe daneben bedeuten. -->
+    <div class="flex items-center gap-1" role="group" aria-label="Ansicht">
+      @for (option of views; track option.key) {
+        <button
+          type="button"
+          (click)="setView(option.key)"
+          [attr.aria-pressed]="view() === option.key"
+          class="cursor-pointer rounded-md border px-2.5 py-1 text-xs"
+          [class.bg-brand]="view() === option.key"
+          [class.text-brand-contrast]="view() === option.key"
+          [class.border-brand]="view() === option.key"
+          [class.border-border]="view() !== option.key"
+          [class.text-content]="view() !== option.key"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+
+    <div class="flex items-center gap-1">
+      <button
+        type="button"
+        (click)="shift(-1)"
+        aria-label="Zurück"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-sm text-content"
+      >
+        ‹
+      </button>
+      <span class="min-w-56 text-center text-sm font-medium">{{ label() }}</span>
+      <button
+        type="button"
+        (click)="shift(1)"
+        aria-label="Vor"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-sm text-content"
+      >
+        ›
+      </button>
+      <button
+        type="button"
+        (click)="goToday()"
+        class="ml-1 cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+      >
+        Heute
+      </button>
+    </div>
+
+    <!-- Spannweite und Spielzeit gehören zum Jahresraster. In der Woche wären
+         sie ohne Wirkung und stünden nur im Weg. -->
+    @if (view() === 'year') {
+      <div class="flex items-center gap-1">
+        <span class="text-xs text-content-muted">Monate</span>
+        @for (span of spans; track span) {
+          <button
+            type="button"
+            (click)="setSpan(span)"
+            [attr.aria-label]="span + ' Monate zeigen'"
+            [attr.aria-pressed]="monthCount() === span"
+            class="cursor-pointer rounded-md border px-2 py-1 text-xs tabular"
+            [class.bg-brand]="monthCount() === span"
+            [class.text-brand-contrast]="monthCount() === span"
+            [class.border-brand]="monthCount() === span"
+            [class.border-border]="monthCount() !== span"
+            [class.text-content]="monthCount() !== span"
+          >
+            {{ span }}
+          </button>
+        }
+      </div>
+
+      <div class="flex items-center gap-1">
+        <button
+          type="button"
+          (click)="season()"
+          class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+          title="August bis Juli"
+        >
+          Spielzeit
+        </button>
+        <button
+          type="button"
+          (click)="calendarYear()"
+          class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+        >
+          Kalenderjahr
+        </button>
+      </div>
+    }
+
+    <div class="ml-auto flex items-center gap-3 text-xs text-content-muted tabular">
+      @if (loading()) {
+        <span>lädt …</span>
+      } @else {
+        <span>{{ summary().total }} Termine</span>
+        @if (summary().planned > 0) {
+          <span>{{ summary().planned }} vorgemerkt</span>
+        }
+        @if (summary().cancelled > 0) {
+          <span>{{ summary().cancelled }} abgesagt</span>
+        }
+      }
+    </div>
+  </div>
+
+  <!-- Legende und Filter in einem: Wer nur die Vorstellungen sehen will,
+       klickt die übrigen weg. Gilt für alle Ansichten. -->
+  @if (resources().length > 0) {
+    <div class="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2">
+      <span class="text-xs text-content-muted">Belegung</span>
+      @for (resource of resources(); track resource.id) {
+        <button
+          type="button"
+          (click)="toggleResource(resource.id)"
+          [attr.aria-pressed]="isPicked(resource.id)"
+          [title]="resource.kindLabel ?? 'Ressource'"
+          class="flex cursor-pointer items-center gap-1.5 rounded-full border bg-transparent py-0.5 pr-2 pl-1.5 text-xs"
+          [class.border-brand]="isPicked(resource.id)"
+          [class.text-brand]="isPicked(resource.id)"
+          [class.border-border]="!isPicked(resource.id)"
+          [class.text-content]="!isPicked(resource.id)"
+        >
+          <span
+            class="size-2.5 rounded-sm"
+            [style.background]="resource.kindColor ?? 'var(--color-border-strong)'"
+          ></span>
+          {{ resource.name }}
+        </button>
+      }
+      @if (pickedResources().size > 0) {
+        <button
+          type="button"
+          (click)="clearResources()"
+          class="cursor-pointer border-0 bg-transparent text-xs text-content-muted hover:text-content"
+        >
+          alle zeigen
+        </button>
+      }
+
+      @if (people().length > 0) {
+        <label class="ml-auto flex items-center gap-1.5 text-xs text-content-muted">
+          <span>Person</span>
+          <select
+            [ngModel]="pickedPerson()"
+            (ngModelChange)="pickedPerson.set($event)"
+            class="rounded-md border border-border bg-surface px-2 py-0.5 text-xs text-content"
+          >
+            <option value="">alle</option>
+            @for (person of people(); track person.id) {
+              <option [value]="person.id">{{ person.name }}</option>
+            }
+          </select>
+        </label>
+      }
+    </div>
+  }
+
+  @if (categories().length > 0) {
+    <div class="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2">
+      @for (category of categories(); track category.id) {
+        <button
+          type="button"
+          (click)="toggleCategory(category.id)"
+          class="flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-transparent py-0.5 pr-2 pl-1.5 text-xs text-content"
+          [class.opacity-40]="isHidden(category.id)"
+          [attr.aria-pressed]="!isHidden(category.id)"
+        >
+          <span
+            class="size-2.5 rounded-full"
+            [style.background]="category.color ?? 'var(--color-border-strong)'"
+          ></span>
+          {{ category.label }}
+        </button>
+      }
+    </div>
+  }
+
+  <div class="min-h-0 flex-1 overflow-hidden">
+    @switch (view()) {
+      @case ('year') {
+        <souffleur-year-grid
+          [startYear]="anchorYear()"
+          [startMonth]="anchorMonth()"
+          [monthCount]="monthCount()"
+          [byDate]="byDate()"
+          (dayPicked)="pickDay($event)"
+          (entryPicked)="pickEntry($event)"
+        />
+      }
+      @case ('month') {
+        <souffleur-month-view
+          [year]="anchorYear()"
+          [month]="anchorMonth()"
+          [byDate]="byDate()"
+          (dayPicked)="pickDay($event)"
+          (entryPicked)="pickEntry($event)"
+        />
+      }
+      @case ('week') {
+        <souffleur-time-grid
+          [days]="weekDays()"
+          [byDate]="byDate()"
+          (dayPicked)="pickDay($event)"
+          (entryPicked)="pickEntry($event)"
+        />
+      }
+      @default {
+        <souffleur-time-grid
+          [days]="[anchor()]"
+          [byDate]="byDate()"
+          (dayPicked)="pickDay($event)"
+          (entryPicked)="pickEntry($event)"
+        />
+      }
+    }
+  </div>
+</div>
+
+<!-- Der gewählte Tag, ausgeschrieben: Im Raster steht, dass etwas los ist,
+     hier steht, was genau. Als Fenster über dem Raster wie bei Aufgaben und
+     Kontakten -- nicht als Leiste darunter, die erst ins Bild rutschen muss
+     und das Raster zusammendrückt. Wer fertig ist, schließt und steht wieder
+     im Überblick. -->
+@if (selectedDay(); as day) {
+  <souffleur-dialog
+    [heading]="dayLabel(day)"
+    [note]="dayNote()"
+    size="breit"
+    (closed)="selectedDay.set(null)"
+  >
+    @if (dayEntries().length === 0) {
+      <p class="m-0 text-sm text-content-muted">Nichts eingetragen.</p>
+    } @else {
+      <ul class="m-0 max-h-[60vh] list-none space-y-1 overflow-auto p-0">
+        @for (entry of dayEntries(); track $index) {
+          <li
+            class="flex items-baseline gap-3 rounded-md border-l-2 px-2 py-1 text-sm"
+            [style.border-left-color]="entry.categoryColor ?? 'var(--color-border-strong)'"
+            [class.opacity-60]="entry.status === 3"
+          >
+            <span class="w-28 shrink-0 text-content-muted tabular">{{ timeRange(entry) }}</span>
+            <span class="font-medium" [class.line-through]="entry.status === 3">
+              {{ entry.title }}
+            </span>
+            @if (entry.location) {
+              <span class="text-content-muted">{{ entry.location }}</span>
+            }
+            @for (resource of entry.resources; track resource.id) {
+              <span
+                class="rounded-sm px-1.5 py-0.5 text-xs"
+                [style.background]="wash(resource.color)"
+                >{{ resource.display }}</span
+              >
+            }
+            @if (entry.categoryLabel) {
+              <span class="text-xs text-content-faint">{{ entry.categoryLabel }}</span>
+            }
+            @if (entry.isFromSeries) {
+              <span class="text-xs text-content-faint" title="Teil einer Serie">Serie</span>
+            }
+            @if (isDeadline(entry)) {
+              <!-- Gelesen, nicht hier verwaltet: Die Frist gehört der Aufgabe. -->
+              <a
+                routerLink="/aufgaben"
+                class="text-xs text-content-muted underline-offset-2 hover:underline"
+                title="Frist einer Aufgabe — zu ändern in den Aufgaben"
+              >
+                Frist
+              </a>
+            }
+            @if (isTouring(entry)) {
+              <!-- Ebenso: Das Gastspiel gehört der Tournee. -->
+              <a
+                routerLink="/touring"
+                class="text-xs text-content-muted underline-offset-2 hover:underline"
+                title="Gastspiel einer Tournee — zu ändern im Touring"
+              >
+                Gastspiel
+              </a>
+            }
+            @if (isAbsence(entry)) {
+              <!-- Die Person steht schon im Titel; der Grund gehört nicht in den Kalender. -->
+              <a
+                routerLink="/personal"
+                [queryParams]="{ ansicht: 'abwesenheiten' }"
+                class="text-xs text-content-muted underline-offset-2 hover:underline"
+                title="Abwesenheit — beantragt und entschieden im Personal"
+              >
+                Abwesenheit
+              </a>
+            }
+            @if (entry.status !== 2) {
+              <span class="text-xs text-content-faint">{{ entry.statusLabel }}</span>
+            }
+            @if (entry.participants.length > 0 && !isAbsence(entry)) {
+              <span class="truncate text-xs text-content-muted" [title]="assigned(entry)">
+                {{ assigned(entry) }}
+              </span>
+            }
+            @if (entry.description) {
+              <span class="truncate text-xs text-content-faint">{{ entry.description }}</span>
+            }
+          </li>
+        }
+      </ul>
+    }
+
+    <div dialogActions class="mr-auto flex items-center gap-1">
+      <button
+        type="button"
+        (click)="nextDay(-1)"
+        aria-label="Vorheriger Tag"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-sm text-content"
+      >
+        ‹
+      </button>
+      <button
+        type="button"
+        (click)="nextDay(1)"
+        aria-label="Nächster Tag"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-sm text-content"
+      >
+        ›
+      </button>
+    </div>
+
+    @if (view() !== 'day') {
+      <button
+        dialogActions
+        type="button"
+        (click)="openInDay(day)"
+        class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+      >
+        Im Tag öffnen
+      </button>
+    }
+
+    <button
+      dialogActions
+      type="button"
+      (click)="openDialog(day)"
+      class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover"
+    >
+      Termin anlegen
+    </button>
+  </souffleur-dialog>
+}
+
+@if (dialogDate(); as date) {
+  <souffleur-event-dialog
+    [date]="date"
+    [categories]="categories()"
+    [resources]="resources()"
+    [people]="people()"
+    [functions]="functions()"
+    [productions]="productions()"
+    (saved)="afterSave()"
+    (closed)="closeDialog()"
+  />
+}

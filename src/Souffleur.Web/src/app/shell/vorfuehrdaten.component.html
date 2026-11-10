@@ -1,0 +1,74 @@
+<!-- Die Wortmarke selbst. Steht Erfundenes in der Installation, trägt
+     sie ein kleines Zeichen mit Hinweis -- und in der Entwicklung ist sie
+     der Schalter, um das Haus zu wechseln. Kein eigenes Schild mehr: Das
+     nahm den Reitern die Breite. -->
+@if (house.hasDemoData() && demo.houses().length > 0) {
+  <button
+    type="button"
+    (click)="umschalten()"
+    [attr.aria-expanded]="offen()"
+    aria-haspopup="menu"
+    title="In dieser Installation stehen erfundene Daten. Klick wechselt das Haus."
+    class="flex cursor-pointer items-baseline gap-1 border-0 bg-transparent p-0 font-display text-lg font-bold tracking-tight text-brand-contrast"
+  >
+    <span class="md:hidden">s</span>
+    <span class="hidden md:inline">souffleur</span>
+    <span aria-hidden="true" class="text-xs font-normal text-brand-contrast/70">✱</span>
+    <span class="sr-only">Vorführdaten, Haus wechseln</span>
+  </button>
+} @else {
+  <span
+    class="flex items-baseline gap-1 font-display text-lg font-bold tracking-tight"
+    [attr.title]="house.hasDemoData() ? 'In dieser Installation stehen erfundene Daten.' : null"
+  >
+    <span class="md:hidden">s</span>
+    <span class="hidden md:inline">souffleur</span>
+    @if (house.hasDemoData()) {
+      <span aria-hidden="true" class="text-xs font-normal text-brand-contrast/70">✱</span>
+      <span class="sr-only">Vorführdaten</span>
+    }
+  </span>
+}
+
+@if (offen()) {
+  <div
+    role="menu"
+    aria-label="Haus wechseln"
+    class="absolute left-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-lg border border-border bg-surface-raised text-content shadow-xl"
+  >
+    <div class="border-b border-border px-3 py-2 text-sm font-semibold">Haus wechseln</div>
+
+    <ul class="m-0 list-none p-0">
+      @for (haus of demo.houses(); track haus.key) {
+        <li class="border-b border-border last:border-b-0">
+          <button
+            type="button"
+            role="menuitem"
+            (click)="wechseln(haus)"
+            [disabled]="wechselt() !== null"
+            [attr.aria-current]="haus.isCurrent ? 'true' : null"
+            class="flex w-full cursor-pointer items-center gap-2 border-0 bg-transparent px-3 py-2.5 text-left text-sm hover:bg-surface-sunken disabled:cursor-wait"
+            [class.font-semibold]="haus.isCurrent"
+          >
+            <span
+              class="size-2 shrink-0 rounded-full"
+              [class.bg-brand]="haus.isCurrent"
+              [class.bg-transparent]="!haus.isCurrent"
+              aria-hidden="true"
+            ></span>
+            <span class="min-w-0 flex-1 truncate">{{ haus.name }}</span>
+            @if (wechselt() === haus.key) {
+              <span class="text-xs text-content-muted">wird geladen…</span>
+            } @else if (haus.isCurrent) {
+              <span class="sr-only">, läuft gerade</span>
+            }
+          </button>
+        </li>
+      }
+    </ul>
+
+    <p class="m-0 border-t border-border px-3 py-2 text-[11px] text-content-muted">
+      Nur in der Entwicklung. Konten und Einstellungen bleiben, der Bestand des Hauses kommt neu.
+    </p>
+  </div>
+}

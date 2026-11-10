@@ -1,0 +1,372 @@
+<div class="h-full overflow-auto p-5">
+  <div class="mb-4 max-w-4xl">
+    <h1 class="m-0 font-display text-lg font-semibold">Zugänge</h1>
+    <p class="m-0 mt-1 max-w-prose text-sm text-content-muted">
+      Was jemand darf, kommt aus Rollen. Eine Rolle bekommt man selbst oder über eine Gruppe —
+      und beides zählt zusammen. Ein Recht nimmt man weg, indem man die Rolle wegnimmt, nicht
+      durch ein Verbot an anderer Stelle.
+    </p>
+  </div>
+
+  <!-- Im Fenster steht die Meldung im Fenster; doppelt hilft niemandem. -->
+  @if (problems().length > 0 && entwurf() === null) {
+    <souffleur-meldung class="mb-3 max-w-4xl" [texte]="problems()" />
+  }
+
+  <div role="tablist" aria-label="Ansicht" class="mb-4 flex max-w-4xl gap-1 border-b border-border">
+    @for (r of [
+      { key: 'personen', label: 'Personen', icon: 'personal' },
+      { key: 'gruppen', label: 'Gruppen', icon: 'gruppe' },
+      { key: 'rollen', label: 'Rollen', icon: 'rolle' }
+    ]; track r.key) {
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="reiter() === r.key"
+        (click)="reiter.set($any(r.key))"
+        class="-mb-px flex cursor-pointer items-center gap-2 border-0 border-b-2 bg-transparent px-3 py-2 text-sm"
+        [class.border-brand]="reiter() === r.key"
+        [class.font-semibold]="reiter() === r.key"
+        [class.text-brand]="reiter() === r.key"
+        [class.border-transparent]="reiter() !== r.key"
+        [class.text-content-muted]="reiter() !== r.key"
+      >
+        <souffleur-icon [name]="$any(r.icon)" [size]="15" />
+        {{ r.label }}
+      </button>
+    }
+    <!--
+      Anlegen auch hier, nicht nur links in der Leiste: Wer auf „Gruppen"
+      steht und eine neue will, sucht den Knopf bei der Liste (Wolf, 09.11.2026).
+    -->
+    @if (reiter() === 'gruppen') {
+      <button
+        type="button"
+        (click)="neueGruppe()"
+        class="mb-1 ml-auto flex cursor-pointer items-center gap-1.5 self-center rounded-md border border-border bg-transparent px-2.5 py-1 text-sm text-brand hover:bg-surface-sunken"
+      >
+        <souffleur-icon name="plus" [size]="13" />
+        Gruppe
+      </button>
+    } @else if (reiter() === 'rollen') {
+      <button
+        type="button"
+        (click)="neueRolle()"
+        class="mb-1 ml-auto flex cursor-pointer items-center gap-1.5 self-center rounded-md border border-border bg-transparent px-2.5 py-1 text-sm text-brand hover:bg-surface-sunken"
+      >
+        <souffleur-icon name="plus" [size]="13" />
+        Rolle
+      </button>
+    }
+  </div>
+
+  <!-- ── Personen ─────────────────────────────────────────────────────── -->
+  @if (reiter() === 'personen') {
+    <table class="w-full max-w-4xl border-collapse text-sm">
+      <thead>
+        <tr class="border-b border-border text-left text-xs text-content-muted">
+          <th class="py-1.5 font-medium">Person</th>
+          <th class="py-1.5 font-medium">Eigene Rollen</th>
+          <th class="py-1.5 font-medium">Gruppen</th>
+          <th class="w-20 py-1.5 text-right font-medium">Rechte</th>
+          <th class="w-24 py-1.5"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (person of personen(); track person.id) {
+          <tr class="border-b border-border" [class.opacity-50]="!person.isActive">
+            <td class="py-2">
+              <div class="font-medium">{{ person.name }}</div>
+              <div class="text-xs text-content-faint">{{ person.email }}</div>
+            </td>
+            <td class="py-2">
+              <div class="flex flex-wrap gap-1">
+                @for (id of person.roleIds; track id) {
+                  <span class="rounded bg-brand-wash px-1.5 py-0.5 text-xs text-brand">{{ rolleName(id) }}</span>
+                } @empty {
+                  <span class="text-xs text-content-faint">—</span>
+                }
+              </div>
+            </td>
+            <td class="py-2">
+              <div class="flex flex-wrap gap-1">
+                @for (gruppe of gruppenVon(person); track gruppe.id) {
+                  <span class="rounded bg-surface-sunken px-1.5 py-0.5 text-xs">{{ gruppe.name }}</span>
+                } @empty {
+                  <span class="text-xs text-content-faint">—</span>
+                }
+              </div>
+            </td>
+            <td class="py-2 text-right tabular">{{ rechteVon(person) }}</td>
+            <td class="py-2 text-right">
+              <button
+                type="button"
+                (click)="personBearbeiten(person)"
+                class="cursor-pointer border-0 bg-transparent text-sm text-brand hover:underline"
+              >
+                Rollen
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="5" class="py-4 text-sm text-content-muted">Noch keine Konten.</td></tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <!-- ── Gruppen ──────────────────────────────────────────────────────── -->
+  @if (reiter() === 'gruppen') {
+    <ul class="m-0 flex max-w-4xl list-none flex-col gap-2 p-0">
+      @for (gruppe of gruppen(); track gruppe.id) {
+        <li
+          class="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface-raised px-4 py-3"
+          [class.opacity-50]="!gruppe.isActive"
+        >
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-medium">{{ gruppe.name }}</span>
+              @if (!gruppe.isActive) {
+                <span class="text-xs text-content-faint">stillgelegt</span>
+              }
+            </div>
+            @if (gruppe.note) {
+              <div class="text-xs text-content-muted">{{ gruppe.note }}</div>
+            }
+            <div class="mt-2 flex flex-wrap gap-1">
+              @for (id of gruppe.roleIds; track id) {
+                <span class="rounded bg-brand-wash px-1.5 py-0.5 text-xs text-brand">{{ rolleName(id) }}</span>
+              }
+            </div>
+            <div class="mt-1.5 text-xs text-content-muted">
+              @for (id of gruppe.memberIds; track id; let last = $last) {
+                {{ personName(id) }}@if (!last) {, }
+              } @empty {
+                niemand
+              }
+            </div>
+          </div>
+          <button
+            type="button"
+            (click)="gruppeBearbeiten(gruppe)"
+            class="shrink-0 cursor-pointer border-0 bg-transparent text-sm text-brand hover:underline"
+          >
+            ändern
+          </button>
+        </li>
+      } @empty {
+        <li class="text-sm text-content-muted">
+          Noch keine Gruppen. Eine Gruppe wie „Technik" oder „Abenddienst" bündelt Leute — und
+          was sie dürfen.
+        </li>
+      }
+    </ul>
+  }
+
+  <!-- ── Rollen ───────────────────────────────────────────────────────── -->
+  @if (reiter() === 'rollen') {
+    <ul class="m-0 flex max-w-4xl list-none flex-col gap-2 p-0">
+      @for (rolle of rollen(); track rolle.id) {
+        <li class="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface-raised px-4 py-3">
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-medium">{{ rolle.label }}</span>
+              @if (rolle.isBuiltIn) {
+                <span class="rounded bg-surface-sunken px-1.5 py-0.5 text-[11px] text-content-muted">mitgeliefert</span>
+              }
+            </div>
+            @if (rolle.description) {
+              <div class="text-xs text-content-muted">{{ rolle.description }}</div>
+            }
+            <div class="mt-1.5 text-xs text-content-faint">
+              {{ rolle.permissions.length }} von {{ katalog().length }} Rechten
+            </div>
+          </div>
+          <button
+            type="button"
+            (click)="rolleBearbeiten(rolle)"
+            class="shrink-0 cursor-pointer border-0 bg-transparent text-sm text-brand hover:underline"
+          >
+            ändern
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+<!-- ── Das Fenster ───────────────────────────────────────────────────── -->
+@if (entwurf(); as e) {
+  <souffleur-dialog [heading]="titel()" [size]="e.art === 'person' ? 'schmal' : 'breit'" (closed)="schliessen()">
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    @if (e.art === 'rolle') {
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Name</span>
+        <input
+          type="text"
+          [ngModel]="e.name"
+          (ngModelChange)="aendern({ name: $event })"
+          [disabled]="e.isBuiltIn"
+          class="w-72 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content disabled:opacity-60"
+        />
+        @if (e.isBuiltIn) {
+          <span class="mt-1 block text-xs text-content-faint">
+            Mitgeliefert: Rechte und Beschreibung lassen sich ändern, Name und Bestand nicht.
+          </span>
+        }
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Wofür</span>
+        <input
+          type="text"
+          [ngModel]="e.description"
+          (ngModelChange)="aendern({ description: $event })"
+          placeholder="Bucht, kontiert, bereitet Zahlungen vor"
+          class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+
+      <div class="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+        @for (b of bereiche(); track b.area) {
+          <fieldset class="m-0 border-0 p-0">
+            <legend class="mb-1 p-0">
+              <label class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-content-muted">
+                <input
+                  type="checkbox"
+                  [checked]="alleAn(e.permissions, b.rechte)"
+                  [indeterminate]="teilweise(e.permissions, b.rechte)"
+                  (change)="aendern({ permissions: bereichUmschalten(e.permissions, b.rechte) })"
+                />
+                {{ b.area }}
+              </label>
+            </legend>
+            @for (recht of b.rechte; track recht.permission) {
+              <label class="flex items-center gap-2 py-0.5 pl-5 text-sm">
+                <input
+                  type="checkbox"
+                  [checked]="e.permissions.includes(recht.permission)"
+                  (change)="aendern({ permissions: umschalten(e.permissions, recht.permission) })"
+                />
+                {{ recht.label }}
+              </label>
+            }
+          </fieldset>
+        }
+      </div>
+    }
+
+    @if (e.art === 'gruppe') {
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Name</span>
+          <input
+            type="text"
+            [ngModel]="e.name"
+            (ngModelChange)="aendern({ name: $event })"
+            placeholder="Technik"
+            class="w-56 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          />
+        </label>
+        <label class="block grow">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Notiz</span>
+          <input
+            type="text"
+            [ngModel]="e.note"
+            (ngModelChange)="aendern({ note: $event })"
+            class="w-full min-w-40 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          />
+        </label>
+        <label class="flex items-center gap-2 pb-1.5 text-sm">
+          <input type="checkbox" [ngModel]="e.isActive" (ngModelChange)="aendern({ isActive: $event })" />
+          <span>aktiv</span>
+        </label>
+      </div>
+
+      <div class="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
+        <fieldset class="m-0 border-0 p-0">
+          <legend class="mb-1 p-0 text-xs font-semibold uppercase tracking-wider text-content-muted">
+            Rollen der Gruppe
+          </legend>
+          @for (rolle of rollen(); track rolle.id) {
+            <label class="flex items-center gap-2 py-0.5 text-sm">
+              <input
+                type="checkbox"
+                [checked]="e.roleIds.includes(rolle.id)"
+                (change)="aendern({ roleIds: umschalten(e.roleIds, rolle.id) })"
+              />
+              {{ rolle.label }}
+            </label>
+          }
+        </fieldset>
+
+        <fieldset class="m-0 border-0 p-0">
+          <legend class="mb-1 p-0 text-xs font-semibold uppercase tracking-wider text-content-muted">
+            Wer dazugehört
+          </legend>
+          @for (person of personen(); track person.id) {
+            <label class="flex items-center gap-2 py-0.5 text-sm" [class.opacity-50]="!person.isActive">
+              <input
+                type="checkbox"
+                [checked]="e.memberIds.includes(person.id)"
+                (change)="aendern({ memberIds: umschalten(e.memberIds, person.id) })"
+              />
+              {{ person.name }}
+            </label>
+          }
+        </fieldset>
+      </div>
+    }
+
+    @if (e.art === 'person') {
+      <p class="m-0 text-xs text-content-muted">
+        Nur die eigenen Rollen. Was aus Gruppen kommt, ändert man bei der Gruppe.
+      </p>
+      <fieldset class="m-0 border-0 p-0">
+        <legend class="sr-only">Rollen</legend>
+        @for (rolle of rollen(); track rolle.id) {
+          <label class="flex items-center gap-2 py-0.5 text-sm">
+            <input
+              type="checkbox"
+              [checked]="e.roleIds.includes(rolle.id)"
+              (change)="aendern({ roleIds: umschalten(e.roleIds, rolle.id) })"
+            />
+            {{ rolle.label }}
+          </label>
+        }
+      </fieldset>
+    }
+
+    <!-- Löschen links, getrennt vom Rest: Es soll niemand danebentreffen. -->
+    @if (e.art !== 'person' && e.id !== null && !(e.art === 'rolle' && e.isBuiltIn)) {
+      <button
+        dialogActions
+        type="button"
+        (click)="loeschen()"
+        [disabled]="busy()"
+        class="mr-auto cursor-pointer rounded-md border border-critical bg-transparent px-3 py-1.5 text-sm text-critical disabled:opacity-60"
+      >
+        {{ e.art === 'rolle' ? 'Rolle löschen' : 'Gruppe löschen' }}
+      </button>
+    }
+    <button
+      dialogActions
+      type="button"
+      (click)="schliessen()"
+      class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+    >
+      Abbrechen
+    </button>
+    <button
+      dialogActions
+      type="button"
+      (click)="speichern()"
+      [disabled]="busy()"
+      class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-semibold text-brand-contrast disabled:opacity-60"
+    >
+      {{ busy() ? 'Wird gespeichert …' : 'Speichern' }}
+    </button>
+  </souffleur-dialog>
+}

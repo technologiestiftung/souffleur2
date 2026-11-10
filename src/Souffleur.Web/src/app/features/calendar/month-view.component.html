@@ -1,0 +1,68 @@
+<div class="flex h-full min-h-0 flex-col">
+  <div class="grid shrink-0 grid-cols-7 border-b border-border">
+    @for (weekday of weekdays; track weekday) {
+      <div class="px-2 py-1.5 text-center text-xs font-medium text-content-muted">
+        <span class="hidden md:inline">{{ weekday }}</span>
+        <span class="md:hidden">{{ weekday.slice(0, 2) }}</span>
+      </div>
+    }
+  </div>
+
+  <!-- Die Wochen teilen sich die Hoehe, statt oben zu kleben: Ein Monat, der
+       nur das obere Drittel nutzt, sieht aus, als fehle etwas. -->
+  <div class="flex min-h-0 flex-1 flex-col overflow-auto">
+    @for (week of weeks(); track $index) {
+      <div class="grid min-h-24 flex-1 grid-cols-7">
+        @for (day of week; track day.date) {
+          <div
+            class="min-h-24 min-w-0 border-r border-b border-border px-1 py-1"
+            [class.bg-surface-sunken]="day.isWeekend"
+            [class.opacity-45]="!day.inMonth"
+          >
+            <button
+              type="button"
+              (click)="dayPicked.emit(day.date)"
+              [attr.aria-label]="'Tag ' + day.date + ' zeigen'"
+              class="block cursor-pointer border-0 bg-transparent p-0 text-xs tabular"
+              [class.font-semibold]="day.isToday"
+              [class.text-brand]="day.isToday"
+              [class.text-content-muted]="!day.isToday"
+            >
+              {{ day.number }}
+            </button>
+
+            @for (entry of shown(day); track $index) {
+              <button
+                type="button"
+                (click)="entryPicked.emit(entry)"
+                [title]="tooltip(entry)"
+                class="mt-0.5 block w-full cursor-pointer truncate rounded-xs border-0 border-l-2 py-px pr-0.5 pl-1 text-left text-[11px] leading-tight text-content"
+                [style.border-left-color]="accent(entry.categoryColor)"
+                [style.background]="wash(entry.categoryColor)"
+                [class.line-through]="entry.status === 3"
+                [class.opacity-55]="entry.status === 3"
+                [class.italic]="entry.status === 1"
+              >
+                @if (time(entry)) {
+                  <span class="tabular text-content-muted">{{ time(entry) }}</span>
+                }
+                {{ entry.title }}
+              </button>
+            }
+
+            @if (hidden(day) > 0) {
+              <button
+                type="button"
+                (click)="dayPicked.emit(day.date)"
+                [attr.aria-label]="hidden(day) + ' weitere am ' + day.date"
+                class="mt-0.5 block w-full cursor-pointer border-0 bg-transparent p-0 text-left text-[10px] text-content-muted hover:text-brand"
+              >
+                +{{ hidden(day) }} weitere
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

@@ -1,0 +1,678 @@
+@if (!layout.chatOpen() || !layout.chatPinned()) {
+  <aside
+    aria-label="Kommunikation, zugeklappt"
+    class="flex w-13 shrink-0 flex-col items-center gap-2 border-l border-border bg-surface-raised pt-3"
+  >
+    <button
+      type="button"
+      (click)="toggle()"
+      [attr.aria-label]="
+        ungelesen()
+          ? 'Kommunikation aufklappen, ' + ungelesen() + ' ungelesen'
+          : 'Kommunikation aufklappen'
+      "
+      [attr.aria-expanded]="layout.chatOpen()"
+      class="relative grid size-8 place-items-center rounded-lg border border-border bg-surface-raised text-content hover:bg-surface-sunken"
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        aria-hidden="true"
+      >
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+      @if (ungelesen() > 0) {
+        <span
+          aria-hidden="true"
+          class="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold leading-none text-white"
+        >
+          {{ ungelesen() }}
+        </span>
+      }
+    </button>
+  </aside>
+}
+
+@if (layout.chatOpen()) {
+  <aside
+    aria-label="Kommunikation"
+    [class]="
+      layout.chatPinned()
+        ? 'flex w-80 shrink-0 flex-col border-l border-border bg-surface-raised'
+        : 'absolute right-0 top-0 z-40 flex h-full w-80 flex-col border-l border-border bg-surface-raised shadow-xl transition-transform duration-150 ease-out starting:translate-x-full'
+    "
+  >
+    <!-- Der Kopf verhält sich wie links: Rubrik, anpinnen, zuklappen. -->
+    <div class="flex items-center justify-between px-3.5 py-3">
+      <span class="text-[11px] font-semibold uppercase tracking-wider text-content-muted">
+        Kommunikation
+      </span>
+      <div class="flex gap-1">
+        <button
+          type="button"
+          (click)="layout.toggleChatPin()"
+          [attr.aria-label]="layout.chatPinned() ? 'Kommunikation lösen' : 'Kommunikation anpinnen'"
+          [attr.aria-pressed]="layout.chatPinned()"
+          [class]="
+            layout.chatPinned()
+              ? 'grid size-6 place-items-center rounded-md border-0 bg-brand-wash text-brand'
+              : 'grid size-6 place-items-center rounded-md border-0 bg-transparent text-content-faint hover:text-content'
+          "
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            aria-hidden="true"
+          >
+            <path d="M12 17v5M9 2h6l-1 7 3 3v2H7v-2l3-3z" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          (click)="toggle()"
+          aria-label="Kommunikation zuklappen"
+          class="grid size-6 place-items-center rounded-md border-0 bg-transparent text-content-faint hover:text-content"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            aria-hidden="true"
+          >
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    @if (chat.open(); as conversation) {
+      <!-- Eine Unterhaltung bekommt die ganze Leiste. -->
+      <div
+        class="relative flex items-center justify-between gap-2 border-b border-border px-3.5 py-2"
+      >
+        <button
+          type="button"
+          (click)="chat.close()"
+          class="flex min-w-0 items-center gap-2 rounded-md border-0 bg-transparent p-0 text-left text-content hover:text-brand"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            aria-hidden="true"
+            class="shrink-0"
+          >
+            <path d="m15 6-6 6 6 6" />
+          </svg>
+          <span class="min-w-0">
+            <span class="block truncate text-sm font-semibold">{{ titleOf(conversation) }}</span>
+            <span class="block text-[11px] text-content-muted">{{ untertitel(conversation) }}</span>
+          </span>
+        </button>
+
+        <!-- Was man mit der Unterhaltung tun kann, in einem Menü: Teilnehmer,
+             Archiv, Verlassen, Löschen. Die Leiste ist schmal, vier Knöpfe
+             nebeneinander hätten keinen Namen mehr. -->
+        <button
+          type="button"
+          (click)="menuOpen.set(!menuOpen())"
+          aria-label="Unterhaltung verwalten"
+          aria-haspopup="menu"
+          [attr.aria-expanded]="menuOpen()"
+          class="grid size-7 shrink-0 place-items-center rounded-md border border-border bg-transparent text-content-muted hover:text-content"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="5" cy="12" r="2" />
+            <circle cx="12" cy="12" r="2" />
+            <circle cx="19" cy="12" r="2" />
+          </svg>
+        </button>
+
+        @if (menuOpen()) {
+          <div
+            role="menu"
+            aria-label="Unterhaltung"
+            class="absolute right-3 top-full z-10 mt-1 flex min-w-44 flex-col rounded-lg border border-border bg-surface-raised p-1 text-sm shadow-lg"
+          >
+            @if (!conversation.subjectLabel) {
+              <button
+                type="button"
+                role="menuitem"
+                (click)="zeigeTeilnehmer()"
+                class="rounded-md border-0 bg-transparent px-2.5 py-1.5 text-left text-content hover:bg-surface-sunken"
+              >
+                Teilnehmer …
+              </button>
+            }
+            @if (conversation.isArchived) {
+              <button
+                type="button"
+                role="menuitem"
+                (click)="wiederherstellen(conversation)"
+                class="rounded-md border-0 bg-transparent px-2.5 py-1.5 text-left text-content hover:bg-surface-sunken"
+              >
+                Wiederherstellen
+              </button>
+            } @else {
+              <button
+                type="button"
+                role="menuitem"
+                (click)="archivieren()"
+                class="rounded-md border-0 bg-transparent px-2.5 py-1.5 text-left text-content hover:bg-surface-sunken"
+              >
+                Archivieren
+              </button>
+            }
+            @if (!conversation.subjectLabel) {
+              <button
+                type="button"
+                role="menuitem"
+                (click)="verlassen()"
+                class="rounded-md border-0 bg-transparent px-2.5 py-1.5 text-left text-content hover:bg-surface-sunken"
+              >
+                Verlassen
+              </button>
+            }
+            @if (chat.mayDelete(conversation)) {
+              <button
+                type="button"
+                role="menuitem"
+                (click)="loeschenFragen()"
+                class="rounded-md border-0 bg-transparent px-2.5 py-1.5 text-left text-critical hover:bg-surface-sunken"
+              >
+                Löschen …
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="flex min-h-0 flex-1 flex-col-reverse overflow-y-auto px-3.5 py-3">
+        <div class="flex flex-col gap-3">
+          @for (message of nachrichten(); track message.id) {
+            <div>
+              <div class="mb-0.5 flex items-baseline gap-1.5">
+                <span class="text-xs font-semibold">{{ message.authorName }}</span>
+                <span class="text-[11px] text-content-faint">
+                  {{ message.createdAt | date: 'dd.MM. HH:mm' }}
+                </span>
+              </div>
+              @if (message.isRetracted) {
+                <p
+                  class="m-0 rounded-lg bg-surface-sunken px-2.5 py-2 text-sm italic text-content-faint"
+                >
+                  zurückgezogen
+                </p>
+              } @else {
+                <p
+                  class="m-0 whitespace-pre-wrap rounded-lg px-2.5 py-2 text-sm"
+                  [class]="isMine(message.authorId) ? 'bg-brand-wash' : 'bg-surface-sunken'"
+                >
+                  @for (teil of message.teile; track $index) {
+                    @if (teil.erwaehnung) {
+                      <span class="font-semibold text-brand">{{ teil.text }}</span>
+                    } @else {
+                      {{ teil.text }}
+                    }
+                  }
+                </p>
+              }
+            </div>
+          } @empty {
+            <p class="py-6 text-center text-sm text-content-muted">Noch nichts geschrieben.</p>
+          }
+        </div>
+      </div>
+
+      @if (fehler()) {
+        <p role="alert" class="m-0 border-t border-border px-3.5 py-2 text-xs text-critical">
+          {{ fehler() }}
+        </p>
+      }
+
+      @if (conversation.isArchived) {
+        <div
+          class="flex items-center justify-between gap-2 border-t border-border px-3.5 py-3 text-xs text-content-muted"
+        >
+          <span>Archiviert. Nimmt nichts Neues mehr auf.</span>
+          <button
+            type="button"
+            (click)="wiederherstellen(conversation)"
+            class="shrink-0 rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+          >
+            Wiederherstellen
+          </button>
+        </div>
+      } @else {
+        <form class="relative border-t border-border p-2.5" (ngSubmit)="send()">
+          <!-- Die Vorschlagsliste zum @: über dem Feld, damit sie nicht die
+               Knöpfe verdeckt. Enter wählt, solange sie offen ist. -->
+          @if (mentionQuery() !== null && vorschlaege().length > 0) {
+            <ul
+              role="listbox"
+              aria-label="Erwähnen"
+              class="absolute bottom-full left-2.5 right-2.5 m-0 mb-1 list-none rounded-lg border border-border bg-surface-raised p-1 text-sm shadow-lg"
+            >
+              @for (wen of vorschlaege(); track wen.id; let i = $index) {
+                <li
+                  role="option"
+                  [attr.aria-selected]="i === mentionIndex()"
+                  (mousedown)="$event.preventDefault(); waehle(wen, feld)"
+                  (mouseenter)="mentionIndex.set(i)"
+                  class="flex cursor-pointer items-center justify-between gap-2 rounded-md px-2.5 py-1.5"
+                  [class.bg-surface-sunken]="i === mentionIndex()"
+                >
+                  <span class="truncate">{{ wen.name }}</span>
+                  <span class="shrink-0 text-[11px] text-content-faint">{{
+                    wen.kind === 'gruppe' ? 'Gruppe' : ''
+                  }}</span>
+                </li>
+              }
+            </ul>
+          }
+          <label for="chat-draft" class="sr-only">Nachricht</label>
+          <textarea
+            #feld
+            id="chat-draft"
+            rows="2"
+            placeholder="Nachricht, @ erwähnt"
+            [value]="draft()"
+            (input)="tippen(feld)"
+            (click)="tippen(feld)"
+            (keydown)="taste($event, feld)"
+            name="draft"
+            [attr.aria-expanded]="mentionQuery() !== null && vorschlaege().length > 0"
+            class="w-full resize-none rounded-lg border border-border bg-surface px-2.5 py-2 text-sm text-content placeholder:text-content-faint"
+          ></textarea>
+          <div class="mt-1.5 flex items-center justify-between">
+            <span class="text-[11px] text-content-faint">Enter sendet</span>
+            <button
+              type="submit"
+              [disabled]="sending() || !draft().trim()"
+              class="rounded-md border-0 bg-brand px-3 py-1.5 text-xs font-semibold text-brand-contrast disabled:opacity-50"
+            >
+              Senden
+            </button>
+          </div>
+        </form>
+      }
+    } @else if (mail.beschaeftigt()) {
+      <!-- Eine Mail lesen oder schreiben: ebenso die ganze Leiste. -->
+      <souffleur-mail-panel />
+    } @else {
+      <!-- Sonst teilen sich Chat und Post die Leiste: oben die Gespräche, unten die Mails. -->
+      @if (enabled) {
+        <div class="flex min-h-0 flex-1 flex-col">
+          <div class="flex items-center justify-between gap-2 border-b border-border px-3.5 py-2">
+            <span class="flex items-center gap-1.5 text-sm font-semibold">
+              Chat
+              @if (chat.unreadTotal() > 0) {
+                <span
+                  class="grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-white"
+                >
+                  {{ chat.unreadTotal() }}
+                </span>
+              }
+            </span>
+            <div class="flex gap-1">
+              <button
+                type="button"
+                (click)="fenster.set('direkt'); suche.set('')"
+                aria-label="Direktnachricht schreiben"
+                title="Direktnachricht"
+                class="grid size-6 shrink-0 place-items-center rounded-md border border-border bg-transparent text-content-muted hover:text-content"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 21a8 8 0 0 1 16 0" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                (click)="showNewChannel.set(!showNewChannel())"
+                aria-label="Kanal anlegen"
+                title="Kanal anlegen"
+                [attr.aria-expanded]="showNewChannel()"
+                class="grid size-6 shrink-0 place-items-center rounded-md border border-border bg-transparent text-content-muted hover:text-content"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  aria-hidden="true"
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          @if (showNewChannel()) {
+            <form class="border-b border-border p-2.5" (ngSubmit)="createChannel()">
+              <label for="channel-name" class="sr-only">Name des Kanals</label>
+              <input
+                id="channel-name"
+                name="channelName"
+                placeholder="Name des Kanals"
+                [ngModel]="newChannel()"
+                (ngModelChange)="newChannel.set($event)"
+                class="w-full rounded-lg border border-border bg-surface px-2.5 py-2 text-sm text-content placeholder:text-content-faint"
+              />
+              <label class="mt-1.5 flex items-center gap-2 text-xs text-content">
+                <input
+                  type="checkbox"
+                  name="channelPrivate"
+                  [ngModel]="newChannelPrivate()"
+                  (ngModelChange)="newChannelPrivate.set($event)"
+                />
+                Geschlossen: nur für Teilnehmer sichtbar
+              </label>
+              <button
+                type="submit"
+                [disabled]="!newChannel().trim()"
+                class="mt-1.5 w-full rounded-md border-0 bg-brand px-3 py-1.5 text-xs font-semibold text-brand-contrast disabled:opacity-50"
+              >
+                Anlegen
+              </button>
+            </form>
+          }
+
+          <ul class="m-0 min-h-0 flex-1 list-none overflow-y-auto p-2">
+            @for (conversation of chat.conversations(); track conversation.id) {
+              <li>
+                <button
+                  type="button"
+                  (click)="open(conversation)"
+                  class="flex w-full items-start justify-between gap-2 rounded-lg border-0 bg-transparent px-2.5 py-2 text-left hover:bg-surface-sunken"
+                >
+                  <span class="min-w-0">
+                    <span class="block truncate text-sm font-medium text-content">
+                      @if (conversation.isPrivate && isChannel(conversation)) {
+                        <svg
+                          width="11"
+                          height="11"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.2"
+                          aria-hidden="true"
+                          class="-mt-0.5 mr-0.5 inline text-content-faint"
+                        >
+                          <rect x="5" y="11" width="14" height="10" rx="2" />
+                          <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                        </svg>
+                      }
+                      {{ titleOf(conversation) }}
+                    </span>
+                    <span class="block text-[11px] text-content-muted">
+                      @if (conversation.subjectLabel) {
+                        an einem Gegenstand ·
+                      }
+                      @if (conversation.lastMessageAt) {
+                        {{ conversation.lastMessageAt | date: 'dd.MM. HH:mm' }}
+                      } @else {
+                        noch leer
+                      }
+                    </span>
+                  </span>
+                  @if (conversation.unread) {
+                    <span
+                      class="mt-0.5 grid min-w-5 shrink-0 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-white"
+                    >
+                      {{ conversation.unread }}
+                    </span>
+                  }
+                </button>
+              </li>
+            } @empty {
+              <li class="px-2.5 py-6 text-center text-sm text-content-muted">
+                Noch keine Unterhaltung.
+              </li>
+            }
+
+            <!-- Das Archiv zugeklappt am Ende der Liste: lesbar, aber aus dem Weg. -->
+            @if (chat.archived().length > 0) {
+              <li class="mt-2 border-t border-border pt-2">
+                <button
+                  type="button"
+                  (click)="showArchived.set(!showArchived())"
+                  [attr.aria-expanded]="showArchived()"
+                  class="flex w-full items-center justify-between rounded-md border-0 bg-transparent px-2.5 py-1 text-left text-[11px] font-semibold uppercase tracking-wider text-content-muted hover:text-content"
+                >
+                  Archiv ({{ chat.archived().length }})
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.2"
+                    aria-hidden="true"
+                    [class.rotate-180]="showArchived()"
+                  >
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+              </li>
+              @if (showArchived()) {
+                @for (conversation of chat.archived(); track conversation.id) {
+                  <li>
+                    <button
+                      type="button"
+                      (click)="open(conversation)"
+                      class="flex w-full items-start justify-between gap-2 rounded-lg border-0 bg-transparent px-2.5 py-2 text-left opacity-70 hover:bg-surface-sunken"
+                    >
+                      <span class="min-w-0">
+                        <span class="block truncate text-sm font-medium text-content">{{
+                          titleOf(conversation)
+                        }}</span>
+                        <span class="block text-[11px] text-content-muted">archiviert</span>
+                      </span>
+                    </button>
+                  </li>
+                }
+              }
+            }
+          </ul>
+        </div>
+      }
+
+      <souffleur-mail-panel [class]="enabled ? 'border-t border-border' : ''" />
+    }
+  </aside>
+}
+
+<!-- Teilnehmer: wer dabei ist, wer dazukommt. Als Fenster, weil die Leiste
+     dafür zu schmal ist und die Auswahl aus allen Konten des Hauses Platz
+     braucht. -->
+@if (fenster() === 'teilnehmer' && chat.open(); as conversation) {
+  <souffleur-dialog
+    heading="Teilnehmer"
+    [note]="titleOf(conversation)"
+    (closed)="schliesseFenster()"
+  >
+    <ul class="m-0 mb-4 list-none divide-y divide-border p-0" aria-label="Dabei">
+      @for (person of teilnehmer(); track person.userId) {
+        <li class="flex items-center justify-between gap-2 py-1.5 text-sm">
+          <span
+            >{{ person.name }}
+            @if (person.userId === me) {
+              <span class="text-content-faint"> (ich)</span>
+            }
+          </span>
+          @if (person.userId === me) {
+            @if (isChannel(conversation)) {
+              <button
+                type="button"
+                (click)="herausnehmen(person.userId)"
+                class="rounded-md border border-border bg-transparent px-2 py-0.5 text-xs text-content"
+              >
+                Verlassen
+              </button>
+            }
+          } @else if (isChannel(conversation)) {
+            <button
+              type="button"
+              (click)="herausnehmen(person.userId)"
+              [attr.aria-label]="person.name + ' herausnehmen'"
+              class="rounded-md border border-border bg-transparent px-2 py-0.5 text-xs text-content"
+            >
+              Herausnehmen
+            </button>
+          }
+        </li>
+      } @empty {
+        <li class="py-1.5 text-sm text-content-muted">Niemand dabei.</li>
+      }
+    </ul>
+
+    @if (isChannel(conversation)) {
+      <label for="teilnehmer-suche" class="mb-1 block text-xs font-semibold text-content-muted"
+        >Aufnehmen</label
+      >
+      <input
+        id="teilnehmer-suche"
+        type="search"
+        placeholder="Person oder Gruppe suchen"
+        [ngModel]="suche()"
+        (ngModelChange)="suche.set($event)"
+        class="mb-2 w-full rounded-lg border border-border bg-surface px-2.5 py-2 text-sm text-content placeholder:text-content-faint"
+      />
+      <ul class="m-0 max-h-56 list-none overflow-auto p-0 text-sm" aria-label="Zur Auswahl">
+        @for (gruppe of auswahlGruppen(); track gruppe.id) {
+          <li>
+            <button
+              type="button"
+              (click)="aufnehmen([], [gruppe.id])"
+              class="flex w-full items-center justify-between rounded-md border-0 bg-transparent px-2 py-1.5 text-left text-content hover:bg-surface-sunken"
+            >
+              <span>{{ gruppe.name }}</span>
+              <span class="text-[11px] text-content-faint">Gruppe, alle aufnehmen</span>
+            </button>
+          </li>
+        }
+        @for (person of auswahlPersonen(); track person.id) {
+          <li>
+            <button
+              type="button"
+              (click)="aufnehmen([person.id], [])"
+              class="flex w-full items-center rounded-md border-0 bg-transparent px-2 py-1.5 text-left text-content hover:bg-surface-sunken"
+            >
+              {{ person.name }}
+            </button>
+          </li>
+        } @empty {
+          @if (auswahlGruppen().length === 0) {
+            <li class="px-2 py-1.5 text-content-muted">Niemand mehr aufzunehmen.</li>
+          }
+        }
+      </ul>
+      @if (fehler()) {
+        <p role="alert" class="m-0 mt-2 text-xs text-critical">{{ fehler() }}</p>
+      }
+    }
+
+    <button
+      dialogActions
+      type="button"
+      (click)="schliesseFenster()"
+      class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+    >
+      Fertig
+    </button>
+  </souffleur-dialog>
+}
+
+@if (fenster() === 'direkt') {
+  <souffleur-dialog heading="Direktnachricht an" (closed)="schliesseFenster()">
+    <label for="direkt-suche" class="sr-only">Person suchen</label>
+    <input
+      id="direkt-suche"
+      type="search"
+      placeholder="Person suchen"
+      [ngModel]="suche()"
+      (ngModelChange)="suche.set($event)"
+      class="mb-2 w-full rounded-lg border border-border bg-surface px-2.5 py-2 text-sm text-content placeholder:text-content-faint"
+    />
+    <ul class="m-0 max-h-64 list-none overflow-auto p-0 text-sm" aria-label="Personen">
+      @for (person of auswahlPersonen(); track person.id) {
+        <li>
+          <button
+            type="button"
+            (click)="direktAn(person.id)"
+            class="flex w-full items-center rounded-md border-0 bg-transparent px-2 py-1.5 text-left text-content hover:bg-surface-sunken"
+          >
+            {{ person.name }}
+          </button>
+        </li>
+      } @empty {
+        <li class="px-2 py-1.5 text-content-muted">Niemand gefunden.</li>
+      }
+    </ul>
+    <button
+      dialogActions
+      type="button"
+      (click)="schliesseFenster()"
+      class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+    >
+      Abbrechen
+    </button>
+  </souffleur-dialog>
+}
+
+@if (fenster() === 'loeschen' && chat.open(); as conversation) {
+  <souffleur-dialog
+    heading="Kanal löschen?"
+    [note]="titleOf(conversation)"
+    (closed)="schliesseFenster()"
+  >
+    <p class="m-0 text-sm text-content">
+      Der Kanal und alle Nachrichten darin verschwinden für alle Teilnehmer. Das lässt sich nicht
+      rückgängig machen. Wer die Nachrichten behalten will, archiviert stattdessen.
+    </p>
+    @if (fehler()) {
+      <p role="alert" class="m-0 mt-2 text-xs text-critical">{{ fehler() }}</p>
+    }
+    <button
+      dialogActions
+      type="button"
+      (click)="schliesseFenster()"
+      class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+    >
+      Abbrechen
+    </button>
+    <button
+      dialogActions
+      type="button"
+      (click)="loeschen()"
+      class="cursor-pointer rounded-lg border-0 bg-critical px-3 py-2 text-sm font-semibold text-white"
+    >
+      Löschen
+    </button>
+  </souffleur-dialog>
+}

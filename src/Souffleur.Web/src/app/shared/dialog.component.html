@@ -1,0 +1,41 @@
+<div
+  class="fixed inset-0 z-50 flex items-start justify-center overflow-auto bg-black/40 p-4 pt-10"
+  (keydown)="onKeydown($event)"
+>
+  <div
+    #panel
+    role="dialog"
+    aria-modal="true"
+    [attr.aria-label]="heading()"
+    tabindex="-1"
+    class="w-full rounded-lg border border-border bg-surface-raised shadow-xl outline-none"
+    [class.max-w-lg]="size() === 'schmal'"
+    [class.max-w-3xl]="size() === 'breit'"
+    [class.max-w-6xl]="size() === 'weit'"
+  >
+    <div class="flex items-baseline justify-between gap-4 border-b border-border px-5 py-3">
+      <div class="min-w-0">
+        <h2 class="m-0 font-display text-lg font-semibold">{{ heading() }}</h2>
+        @if (note()) {
+          <p class="m-0 mt-0.5 text-xs text-content-muted">{{ note() }}</p>
+        }
+      </div>
+
+      <button
+        type="button"
+        (click)="closed.emit()"
+        class="shrink-0 cursor-pointer border-0 bg-transparent text-sm text-content-muted hover:text-content"
+      >
+        Schließen
+      </button>
+    </div>
+
+    <div class="space-y-3 px-5 py-4">
+      <ng-content />
+    </div>
+
+    <div class="flex flex-wrap items-center justify-end gap-2 border-t border-border px-5 py-3">
+      <ng-content select="[dialogActions]" />
+    </div>
+  </div>
+</div>

@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/*
+  Hell und dunkel von Anfang an. Zwei Wege führen hierher: die Einstellung des
+  Betriebssystems, und die Wahl der Person. Die Wahl gewinnt und steht als
+  data-theme am <html>-Element.
+*/
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/*
+  Die Farben von souffleur. Benannt nach ihrer Aufgabe, nicht nach ihrem Aussehen:
+  "surface" bleibt "surface", ob es nun Papierweiß oder Nachtbraun ist. Nur so
+  lässt sich ein zweites Thema ergänzen, ohne jede Komponente anzufassen.
+*/
+@theme {
+  --color-surface: #f7f5f2;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #efeae4;
+  --color-border: #e3ddd6;
+  --color-border-strong: #c9c0b7;
+
+  --color-content: #2b2724;
+  --color-content-muted: #6e6259;
+  --color-content-faint: #8a7f75;
+
+  --color-brand: #6b2c45;
+  --color-brand-hover: #5a2439;
+  --color-brand-contrast: #ffffff;
+  --color-brand-wash: #f0e7ec;
+
+  --color-accent: #a85e0e;
+  --color-accent-wash: #fdf4e6;
+
+  --color-positive: #17876b;
+  --color-positive-wash: #dcefe8;
+  --color-critical: #a3301f;
+  --color-critical-wash: #fbe9e6;
+
+
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+/*
+  Dunkel ist kein invertiertes Hell. Das Plum bleibt erkennbar, wird aber
+  aufgehellt — auf dunklem Grund verschluckt ein dunkles Weinrot jeden Kontrast.
+  Die Flächen sind warm getönt statt neutral grau, damit es nach demselben
+  Programm aussieht.
+*/
+@layer base {
+  :root {
+    /*
+      Die Farben der Diagramme. Eigene Reihe, nicht die Markenfarben: Ein Donut
+      braucht Scheiben, die auch bei Rot-Grün-Schwäche auseinanderzuhalten sind.
+      Die Reihenfolge ist die Prüfung -- sie wurde gegen Protanopie und
+      Deuteranopie durchgerechnet (geringster Abstand benachbarter Scheiben
+      ΔE 10,8 hell / 9,5 dunkel) und darf nicht umgestellt werden.
+    */
+    --color-chart-1: #a8456a;
+    --color-chart-2: #c98500;
+    --color-chart-3: #17876b;
+    --color-chart-4: #2a78d6;
+    --color-chart-5: #c2402f;
+    --color-chart-6: #8a6fd6;
+  }
+
+  :root[data-theme="dark"] {
+    --color-surface: #1a1715;
+    --color-surface-raised: #242019;
+    --color-surface-sunken: #141210;
+    --color-border: #38322c;
+    --color-border-strong: #4d453d;
+
+    --color-content: #f2ede7;
+    --color-content-muted: #b0a59a;
+    --color-content-faint: #8a8078;
+
+    --color-brand: #d4799b;
+    --color-brand-hover: #e295b1;
+    --color-brand-contrast: #1a1715;
+    --color-brand-wash: #33222a;
+
+    --color-accent: #e0a44a;
+    --color-accent-wash: #332a1c;
+
+    --color-positive: #5cc3a3;
+    --color-positive-wash: #16302a;
+    --color-critical: #e08276;
+    --color-critical-wash: #3a211d;
+
+    /* Dieselben sechs Farbtöne, für den dunklen Grund neu abgestuft. */
+    --color-chart-1: #c25f84;
+    --color-chart-2: #bd8326;
+    --color-chart-3: #22997a;
+    --color-chart-4: #3f84d4;
+    --color-chart-5: #cf6a5f;
+    --color-chart-6: #8e7cdc;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html[data-theme="dark"] {
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--color-surface);
+    color: var(--color-content);
+    font-family: var(--font-sans);
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Tastaturbedienung sichtbar lassen, aber nicht bei Mausklicks aufblitzen. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  /* Zahlenkolonnen untereinander ausrichten. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Wer im Betriebssystem weniger Bewegung eingestellt hat, meint es ernst:
+     Dauerndes Pulsieren loest bei vestibulaeren Stoerungen Schwindel aus.
+     Nicht auf 0 setzen -- manche Browser ueberspringen dann Uebergaenge
+     ganz samt ihrer Abschlussereignisse. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

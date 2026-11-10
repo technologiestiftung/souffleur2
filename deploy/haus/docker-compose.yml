@@ -1,0 +1,55 @@
+# souffleur im Haus. Gehoert zusammen mit einer .env (Vorlage: .env.example).
+#
+# Gebaut wird aus dem Quellcode dieses Repositorys, zwei Ebenen hoeher. Auf
+# einem schwachen NAS dauert das; wer kann, baut auf einem anderen Rechner und
+# bringt das Image mit docker save / docker load hinueber.
+services:
+  souffleur:
+    image: '${SOUFFLEUR_IMAGE:-souffleur:latest}'
+    build: ../..
+    container_name: '${SOUFFLEUR_INSTANCE:-souffleur}'
+    restart: unless-stopped
+
+    # Im Image laeuft souffleur als Benutzer 10001. Das eingehaengte
+    # Datenverzeichnis gehoert aber dem, der es angelegt hat -- auf einer
+    # Synology oft einem ganz anderen. Sonst: "unable to open database file".
+    # Auf den eigenen setzen: id -u und id -g.
+    user: '${SOUFFLEUR_USER:-10001:10001}'
+
+    # Standard: nur auf dieser Maschine erreichbar. Davor gehoert ein
+    # Reverse Proxy mit Zertifikat -- die Synology bringt einen mit.
+    #
+    # ⚠️ Dieser Port spricht HTTP, nicht HTTPS. Wer ihn im Router nach
+    # aussen freigibt, damit die Kolleg:innen von unterwegs herankommen,
+    # schickt Anmeldungen und Buchhaltungszahlen unverschluesselt durchs
+    # Netz. Von aussen immer ueber den Reverse Proxy, nie direkt.
+    ports:
+      - '${SOUFFLEUR_BIND:-127.0.0.1:8080}:8080'
+
+    volumes:
+      # Hier liegen Datenbank und Belege. Dieses Verzeichnis gehoert ins
+      # Backup des Hauses -- es ist durch nichts zu ersetzen.
+      - ./data:/data
+
+    environment:
+      # Nur beim allerersten Start noetig, danach aus der .env entfernen.
+      Souffleur__FirstAdmin__Email: ${SOUFFLEUR_ADMIN_EMAIL:-}
+      Souffleur__FirstAdmin__Password: ${SOUFFLEUR_ADMIN_PASSWORD:-}
+
+      # Erstbefuellung aus data/haus.json: Spielstaetten und ein Spielplan,
+      # damit das Haus nicht vor einer leeren Oberflaeche sitzt. Wirkt nur
+      # auf eine leere Datenbank. Ohne die Datei passiert nichts.
+      Souffleur__SeedDevelopmentData: ${SOUFFLEUR_SEED_DEMO:-false}
+
+      # Das Sitzungscookie gilt nur ueber verschluesselte Verbindungen --
+      # also hinter dem Reverse Proxy. Eine Installation, die bewusst
+      # unverschluesselt im Hausnetz laeuft, setzt SOUFFLEUR_REQUIRE_HTTPS
+      # auf false und weiss dann, dass die Anmeldung im Klartext laeuft.
+      Souffleur__RequireHttps: ${SOUFFLEUR_REQUIRE_HTTPS:-true}
+
+    logging:
+      # Ohne Begrenzung laeuft ein NAS nach Monaten voll.
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'

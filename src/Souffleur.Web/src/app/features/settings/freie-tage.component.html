@@ -1,0 +1,144 @@
+<div class="flex h-full flex-col p-6">
+  <header class="mb-4">
+    <h1 class="font-display text-2xl font-bold tracking-tight">Freie Tage</h1>
+    <p class="mt-1 max-w-prose text-sm text-content-muted">
+      An Feiertagen und an den Tagen, die das Haus allen schenkt, hat niemand Soll — ein Urlaub, der
+      über sie geht, kostet sie nicht. Welche Feiertage gelten, hängt am Bundesland.
+    </p>
+  </header>
+
+  @if (loading()) {
+    <p class="text-sm text-content-muted">Einen Moment…</p>
+  } @else {
+    <div class="flex max-w-3xl flex-col gap-6">
+      @if (problems().length > 0) {
+        <souffleur-meldung [texte]="problems()" />
+      }
+
+      <label class="flex items-center gap-2 text-sm">
+        <span class="text-content-muted">Bundesland</span>
+        <select
+          [ngModel]="state()"
+          (ngModelChange)="saveState($event)"
+          [disabled]="!mayChangeState() || busy()"
+          aria-label="Bundesland"
+          class="w-64 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          @for (s of states(); track s.value) {
+            <option [ngValue]="s.value">{{ s.label }}</option>
+          }
+        </select>
+        @if (!mayChangeState()) {
+          <span class="text-xs text-content-faint"
+            >ändert, wer die Stammdaten des Hauses pflegt</span
+          >
+        }
+      </label>
+
+      @if (mayChangeDays()) {
+        <section aria-labelledby="ft-haus" class="flex flex-col gap-2">
+          <h2 id="ft-haus" class="m-0 text-base font-semibold">Tage des Hauses</h2>
+          <p class="m-0 text-xs text-content-muted">
+            Jedes Jahr am selben Datum frei — Heiligabend, Silvester.
+          </p>
+
+          @for (d of houseDays(); track d.id) {
+            <div class="flex items-baseline gap-3 text-sm">
+              <span class="w-32 font-mono tabular">{{ d.day }}. {{ months[d.month - 1] }}</span>
+              <span>{{ d.name }}</span>
+              <button
+                type="button"
+                (click)="removeDay(d)"
+                [disabled]="busy()"
+                class="ml-auto cursor-pointer border-0 bg-transparent p-0 text-xs text-content-muted hover:text-brand"
+              >
+                entfernen
+              </button>
+            </div>
+          }
+
+          <div class="flex flex-wrap items-end gap-2">
+            <input
+              type="number"
+              min="1"
+              max="31"
+              [ngModel]="draft().day"
+              (ngModelChange)="patch({ day: $event })"
+              aria-label="Tag"
+              class="w-16 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content tabular"
+            />
+            <select
+              [ngModel]="draft().month"
+              (ngModelChange)="patch({ month: $event })"
+              aria-label="Monat"
+              class="w-36 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            >
+              @for (m of months; track $index) {
+                <option [ngValue]="$index + 1">{{ m }}</option>
+              }
+            </select>
+            <input
+              type="text"
+              [ngModel]="draft().name"
+              (ngModelChange)="patch({ name: $event })"
+              placeholder="Heiligabend"
+              aria-label="Name des freien Tages"
+              class="flex-1 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            />
+            <button
+              type="button"
+              (click)="addDay()"
+              [disabled]="busy()"
+              class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
+            >
+              Freien Tag eintragen
+            </button>
+          </div>
+        </section>
+      }
+
+      <section aria-labelledby="ft-jahr" class="flex flex-col gap-2">
+        <div class="flex items-center gap-2">
+          <h2 id="ft-jahr" class="m-0 text-base font-semibold">Frei in</h2>
+          <button
+            type="button"
+            (click)="shiftYear(-1)"
+            aria-label="Jahr zurück"
+            class="cursor-pointer border-0 bg-transparent px-1 text-content-muted hover:text-brand"
+          >
+            ‹
+          </button>
+          <span class="font-mono tabular">{{ year() }}</span>
+          <button
+            type="button"
+            (click)="shiftYear(1)"
+            aria-label="Jahr vor"
+            class="cursor-pointer border-0 bg-transparent px-1 text-content-muted hover:text-brand"
+          >
+            ›
+          </button>
+        </div>
+
+        <ul class="m-0 flex list-none flex-col gap-1 p-0" aria-label="Freie Tage im Jahr">
+          @for (h of holidays(); track h.date) {
+            <li class="flex items-baseline gap-3 text-sm">
+              <span class="w-40 font-mono tabular text-content-muted">{{
+                h.date | date: 'EEE, dd.MM.' : undefined : 'de'
+              }}</span>
+              <span>{{ h.name }}</span>
+              @if (h.isHouseDay) {
+                <span class="rounded bg-surface-sunken px-1.5 py-0.5 text-[11px] text-content-muted"
+                  >Haus</span
+                >
+              }
+            </li>
+          }
+        </ul>
+        <p class="m-0 text-xs text-content-faint">
+          Regional begrenzte Feiertage fehlen — souffleur weiß nicht, in welcher Gemeinde das Haus
+          liegt. Wer einen braucht, trägt ihn als Tag des Hauses ein.
+        </p>
+      </section>
+    </div>
+  }
+</div>

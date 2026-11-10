@@ -1,0 +1,1538 @@
+<div class="flex h-full min-h-0 flex-col">
+  @if (!blocked() && !loading()) {
+    <souffleur-metric-strip
+      module="produktionen"
+      class="block shrink-0 border-b border-border p-4"
+    />
+  }
+
+  @if (loading()) {
+    <p class="p-6 text-sm text-content-muted">Einen Moment…</p>
+  } @else if (blocked()) {
+    <div class="p-6">
+      <div class="rounded-xl border border-border bg-surface-raised p-6">
+        <h2 class="text-base font-semibold">
+          Produktionen sind in diesem Haus nicht eingeschaltet
+        </h2>
+        <p class="mt-2 text-sm text-content-muted">
+          Module werden unter Einstellungen an- und abgeschaltet.
+        </p>
+      </div>
+    </div>
+  } @else if (list().length === 0) {
+    <div class="p-6">
+      <div class="rounded-xl border border-border bg-surface-raised p-6">
+        <h2 class="text-base font-semibold">Noch keine Produktion</h2>
+        <p class="mt-2 text-sm text-content-muted">
+          Eine Produktion ist das Stück, so wie es im Spielplan steht -- mit seinen Rollen, seinem
+          Budget, dem, was gebraucht wird, und allem, was Aufgaben, Kalender, Belege und Ablage an
+          sie heften.
+        </p>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          @if (canManage()) {
+            <button
+              type="button"
+              (click)="startNew()"
+              class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover"
+            >
+              Produktion anlegen
+            </button>
+          }
+          <label class="flex items-center gap-2 text-xs text-content-muted">
+            <input
+              type="checkbox"
+              [ngModel]="includeArchived()"
+              (ngModelChange)="includeArchived.set($event); reload()"
+            />
+            <span>Abgespieltes zeigen</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="flex min-h-0 flex-1">
+      <!-- Das Register: eine Zeile je Produktion, die aufgeschlagene hervorgehoben. -->
+      <nav
+        aria-label="Produktionen"
+        class="hidden w-72 shrink-0 flex-col border-r border-border md:flex"
+      >
+        <label
+          class="flex items-center gap-2 border-b border-border px-3 py-2.5 text-xs text-content-muted"
+        >
+          <input
+            type="checkbox"
+            [ngModel]="includeArchived()"
+            (ngModelChange)="includeArchived.set($event); reload()"
+          />
+          <span>Abgespieltes zeigen</span>
+        </label>
+        <ul class="m-0 min-h-0 flex-1 list-none overflow-auto p-2">
+          @for (production of list(); track production.id) {
+            <li>
+              <button
+                type="button"
+                (click)="show(production.id)"
+                [attr.aria-current]="selected() === production.id ? 'true' : null"
+                class="flex w-full cursor-pointer items-start gap-2 rounded-lg border-0 px-2 py-2 text-left text-content hover:bg-surface-sunken"
+                [class.bg-surface-sunken]="selected() === production.id"
+              >
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-medium">{{ production.title }}</span>
+                  <span class="block truncate text-[11px] text-content-muted">
+                    {{ production.statusLabel }}
+                    @if (production.premiereDate) {
+                      · {{ production.premiereDate | date: 'dd.MM.yy' }}
+                    }
+                  </span>
+                </span>
+                @if (production.figures; as f) {
+                  <!-- Der Herzschlag: lebt die Produktion, oder liegt sie? -->
+                  <souffleur-aktivitaet
+                    [wochen]="f.activity"
+                    groesse="klein"
+                    class="mt-1.5 shrink-0"
+                  />
+                  @if (f.openRoles > 0 || f.openTasks > 0) {
+                    <span class="flex shrink-0 flex-col items-end gap-0.5 text-[11px] tabular">
+                      @if (f.openRoles > 0) {
+                        <span class="text-accent" [title]="f.openRoles + ' offene Rollen'"
+                          >{{ f.openRoles }} offen</span
+                        >
+                      }
+                      @if (f.openTasks > 0) {
+                        <span class="text-content-muted" [title]="f.openTasks + ' offene Aufgaben'"
+                          >{{ f.openTasks }} Aufg.</span
+                        >
+                      }
+                    </span>
+                  }
+                }
+              </button>
+            </li>
+          }
+        </ul>
+      </nav>
+
+      <!-- Das Buch: eine Produktion, alles auf einen Blick. -->
+      <div class="min-h-0 flex-1 overflow-auto">
+        @if (current(); as production) {
+          <header
+            class="sticky top-0 z-10 flex items-center gap-2 border-b border-border bg-surface/95 px-3 py-3 backdrop-blur md:px-4"
+          >
+            <button
+              type="button"
+              (click)="step(-1)"
+              [disabled]="index() <= 0"
+              aria-label="Vorige Produktion"
+              title="Vorige Produktion (Pfeil links)"
+              class="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent text-base text-content disabled:cursor-default disabled:opacity-40"
+            >
+              ‹
+            </button>
+
+            <div class="min-w-0 flex-1">
+              <!-- Unterhalb des Registers wählt ein Feld die Produktion. -->
+              <select
+                [ngModel]="selected()"
+                (ngModelChange)="show($event)"
+                aria-label="Produktion wählen"
+                class="mb-1 w-full rounded-md border border-border bg-surface px-2 py-1 text-sm text-content md:hidden"
+              >
+                @for (p of list(); track p.id) {
+                  <option [ngValue]="p.id">{{ p.title }}</option>
+                }
+              </select>
+              <h2 class="m-0 flex min-w-0 items-baseline gap-2 text-lg font-semibold">
+                <span class="truncate">{{ production.title }}</span>
+                @if (production.subtitle) {
+                  <span class="hidden truncate text-sm font-normal text-content-muted sm:inline">{{
+                    production.subtitle
+                  }}</span>
+                }
+              </h2>
+              <p class="m-0 flex flex-wrap items-center gap-x-2 text-xs text-content-muted">
+                <span>{{ production.statusLabel }}</span>
+                <span>· {{ dates(production) }}</span>
+                <span class="tabular">· {{ index() + 1 }} von {{ list().length }}</span>
+              </p>
+            </div>
+
+            @if (production.figures; as f) {
+              <souffleur-aktivitaet
+                [wochen]="f.activity"
+                groesse="gross"
+                class="hidden w-72 shrink-0 lg:block"
+              />
+            }
+
+            @if (canManage()) {
+              <button
+                type="button"
+                (click)="startEdit(production)"
+                class="shrink-0 cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+              >
+                Ändern
+              </button>
+              <button
+                type="button"
+                (click)="startRemove()"
+                class="hidden shrink-0 cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content-muted hover:text-content sm:inline-block"
+                [attr.aria-label]="'Produktion ' + production.title + ' löschen'"
+              >
+                Löschen
+              </button>
+            }
+
+            <button
+              type="button"
+              (click)="step(1)"
+              [disabled]="index() >= list().length - 1"
+              aria-label="Nächste Produktion"
+              title="Nächste Produktion (Pfeil rechts)"
+              class="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent text-base text-content disabled:cursor-default disabled:opacity-40"
+            >
+              ›
+            </button>
+          </header>
+
+          @if (problems().length > 0 && editing() === null) {
+            <souffleur-meldung class="mx-4 mt-3" [texte]="problems()" />
+          }
+
+          <article
+            [attr.aria-label]="'Produktionsbuch ' + production.title"
+            class="grid gap-4 p-4 lg:grid-cols-2 2xl:grid-cols-3"
+          >
+            <!-- Beschreibung -->
+            <section
+              aria-label="Beschreibung"
+              class="rounded-xl border border-border bg-surface-raised p-4 lg:col-span-2"
+            >
+              <h3
+                class="m-0 mb-2 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Beschreibung
+              </h3>
+              @if (production.description) {
+                <p class="m-0 whitespace-pre-line text-sm leading-relaxed">
+                  {{ production.description }}
+                </p>
+              } @else {
+                <p class="m-0 text-xs text-content-faint">
+                  Noch keine Beschreibung. Worum geht es, wer spielt, wie lang -- der Text, der auch
+                  nach außen gehen könnte.
+                </p>
+              }
+              @if (production.notes) {
+                <p class="m-0 mt-3 border-t border-border pt-2 text-xs text-content-muted">
+                  <span class="font-medium">Notiz:</span> {{ production.notes }}
+                </p>
+              }
+            </section>
+
+            <!-- Budget -->
+            <section
+              aria-label="Budget"
+              class="rounded-xl border border-border bg-surface-raised p-4"
+            >
+              <h3
+                class="m-0 mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                <a
+                  routerLink="/finanzen"
+                  class="text-content-muted underline-offset-2 hover:text-content hover:underline"
+                  >Budget</a
+                >
+                @if (canManage()) {
+                  <span class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      (click)="startBudget(production)"
+                      class="cursor-pointer border-0 bg-transparent p-0 text-[11px] font-normal normal-case tracking-normal text-content-muted underline-offset-2 hover:underline"
+                    >
+                      bearbeiten
+                    </button>
+                    <button
+                      type="button"
+                      (click)="plusBudgetLine(production)"
+                      aria-label="Position hinzufügen"
+                      title="Position hinzufügen"
+                      class="flex size-5 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent p-0 text-content-muted hover:text-content"
+                    >
+                      <souffleur-icon name="plus" [size]="12" />
+                    </button>
+                  </span>
+                }
+              </h3>
+              <dl class="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm tabular">
+                <dt class="text-xs text-content-muted">Budget</dt>
+                <dd class="m-0 font-mono">
+                  {{
+                    production.budget === null
+                      ? '—'
+                      : (production.budget | currency: 'EUR' : 'symbol' : '1.0-0' : 'de')
+                  }}
+                </dd>
+                <dt class="text-xs text-content-muted">Verplant</dt>
+                <dd class="m-0 font-mono" [class.text-critical]="overPlanned(production)">
+                  {{ planned(production) | currency: 'EUR' : 'symbol' : '1.0-0' : 'de' }}
+                  @if (production.budget && !overPlanned(production)) {
+                    <span class="text-xs text-content-faint">
+                      ·
+                      {{
+                        production.budget - planned(production)
+                          | currency: 'EUR' : 'symbol' : '1.0-0' : 'de'
+                      }}
+                      frei
+                    </span>
+                  }
+                </dd>
+                @if (
+                  production.figures?.costs !== null && production.figures?.costs !== undefined
+                ) {
+                  <dt class="text-xs text-content-muted">Kosten</dt>
+                  <dd class="m-0 font-mono" [class.text-critical]="overBudget(production)">
+                    {{ production.figures?.costs | currency: 'EUR' : 'symbol' : '1.0-0' : 'de' }}
+                    <span class="text-xs text-content-faint">aus Belegen</span>
+                  </dd>
+                  <dt class="text-xs text-content-muted">Einnahmen</dt>
+                  <dd class="m-0 font-mono">
+                    {{ production.figures?.income | currency: 'EUR' : 'symbol' : '1.0-0' : 'de' }}
+                  </dd>
+                }
+              </dl>
+
+              @if (production.budget) {
+                <!-- Zwei Balken auf derselben Skala: was verplant ist, was ausgegeben ist. -->
+                <div class="mt-3 space-y-1" role="presentation">
+                  <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken">
+                    <div
+                      class="h-full rounded-full"
+                      [style.width.%]="share(production, planned(production))"
+                      [style.background]="
+                        overPlanned(production) ? 'var(--color-critical)' : 'var(--color-chart-1)'
+                      "
+                    ></div>
+                  </div>
+                  @if (
+                    production.figures?.costs !== null && production.figures?.costs !== undefined
+                  ) {
+                    <div class="h-1.5 w-full overflow-hidden rounded-full bg-surface-sunken">
+                      <div
+                        class="h-full rounded-full"
+                        [style.width.%]="share(production, production.figures?.costs)"
+                        [style.background]="
+                          overBudget(production) ? 'var(--color-critical)' : 'var(--color-chart-3)'
+                        "
+                      ></div>
+                    </div>
+                  }
+                </div>
+              }
+
+              @if (production.budgetLines.length === 0) {
+                <p class="m-0 mt-3 text-xs text-content-faint">
+                  Noch keine Positionen. Gagen, Ausstattung, Technik, Werbung -- wofür das Budget
+                  gedacht ist.
+                </p>
+              } @else {
+                <table class="mt-3 w-full border-collapse text-sm">
+                  <tbody>
+                    @for (line of production.budgetLines; track line.id) {
+                      <tr class="border-t border-border/60">
+                        <td class="py-1 pr-2">
+                          {{ line.title }}
+                          @if (line.note) {
+                            <span class="block text-xs text-content-faint">{{ line.note }}</span>
+                          }
+                        </td>
+                        <td class="py-1 pr-2 text-xs text-content-muted">{{ line.category }}</td>
+                        <td class="py-1 text-right font-mono text-xs tabular">
+                          {{ line.amount | currency: 'EUR' : '' : '1.0-0' : 'de' }}
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              }
+            </section>
+
+            <!-- Besetzung -->
+            <section
+              aria-label="Besetzung"
+              class="rounded-xl border border-border bg-surface-raised p-4"
+            >
+              <h3
+                class="m-0 mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                <span
+                  ><a
+                    routerLink="/kontakte"
+                    class="text-content-muted underline-offset-2 hover:text-content hover:underline"
+                    >Besetzung</a
+                  >
+                  @if (production.roles.length > 0) {
+                    <span class="font-normal tabular"
+                      >· {{ roles(production, true).length }} von
+                      {{ production.roles.length }} besetzt</span
+                    >
+                  }
+                </span>
+                @if (canManage()) {
+                  <span class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      (click)="startRoles(production)"
+                      class="cursor-pointer border-0 bg-transparent p-0 text-[11px] font-normal normal-case tracking-normal text-content-muted underline-offset-2 hover:underline"
+                    >
+                      bearbeiten
+                    </button>
+                    <button
+                      type="button"
+                      (click)="plusRole(production)"
+                      aria-label="Rolle hinzufügen"
+                      title="Rolle hinzufügen"
+                      class="flex size-5 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent p-0 text-content-muted hover:text-content"
+                    >
+                      <souffleur-icon name="plus" [size]="12" />
+                    </button>
+                  </span>
+                }
+              </h3>
+              @if (production.roles.length === 0) {
+                <p class="m-0 text-xs text-content-faint">
+                  Noch keine Rolle. Hamlet, Ophelia, Regie, Bühne -- was zu besetzen ist, steht
+                  hier, besetzt oder nicht.
+                </p>
+              }
+              <ul class="m-0 list-none space-y-1 p-0 text-sm">
+                @for (role of production.roles; track role.id) {
+                  <li class="flex flex-wrap items-baseline gap-x-2">
+                    <span class="font-medium">{{ role.name }}</span>
+                    @if (role.functionLabel) {
+                      <span
+                        class="rounded bg-surface-sunken px-1.5 py-0.5 text-[11px] text-content-muted"
+                        >{{ role.functionLabel }}</span
+                      >
+                    }
+                    @if (role.isCast) {
+                      <a
+                        [routerLink]="['/kontakte']"
+                        [queryParams]="{ kontakt: role.contactId }"
+                        class="text-content-muted underline-offset-2 hover:underline"
+                        >{{ role.contactName }}</a
+                      >
+                    } @else {
+                      <span class="text-xs font-semibold text-accent">offen</span>
+                    }
+                    @if (role.note) {
+                      <span class="text-xs text-content-faint">– {{ role.note }}</span>
+                    }
+                  </li>
+                }
+              </ul>
+            </section>
+
+            <!-- Bedarf -->
+            <section
+              aria-label="Bedarf"
+              class="rounded-xl border border-border bg-surface-raised p-4"
+            >
+              <h3
+                class="m-0 mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                <span
+                  >Bedarf
+                  @if (needs(production, kinds.Material).length > 0) {
+                    <span class="font-normal tabular"
+                      >· {{ production.figures?.openNeeds ?? 0 }} offen</span
+                    >
+                  }
+                </span>
+                @if (canManage()) {
+                  <span class="flex items-center gap-2">
+                    <button
+                      type="button"
+                      (click)="startNeeds(production, kinds.Material)"
+                      class="cursor-pointer border-0 bg-transparent p-0 text-[11px] font-normal normal-case tracking-normal text-content-muted underline-offset-2 hover:underline"
+                    >
+                      bearbeiten
+                    </button>
+                    <button
+                      type="button"
+                      (click)="plusNeed(production, kinds.Material)"
+                      aria-label="Bedarf hinzufügen"
+                      title="Bedarf hinzufügen"
+                      class="flex size-5 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent p-0 text-content-muted hover:text-content"
+                    >
+                      <souffleur-icon name="plus" [size]="12" />
+                    </button>
+                  </span>
+                }
+              </h3>
+              @if (needs(production, kinds.Material).length === 0) {
+                <p class="m-0 text-xs text-content-faint">
+                  Noch kein Bedarf. Requisite, Kostüm, Technik, Material -- was beschafft oder
+                  gebaut werden muss.
+                </p>
+              }
+              <ul class="m-0 list-none space-y-1 p-0 text-sm">
+                @for (need of needs(production, kinds.Material); track need.id) {
+                  <li class="flex items-baseline gap-2">
+                    <input
+                      type="checkbox"
+                      [checked]="need.isDone"
+                      [disabled]="!canManage()"
+                      (change)="toggleNeed(production, need.id)"
+                      [attr.aria-label]="need.title + (need.isDone ? ' vorhanden' : ' offen')"
+                      class="mt-0.5"
+                    />
+                    <span
+                      class="min-w-0 flex-1"
+                      [class.line-through]="need.isDone"
+                      [class.text-content-muted]="need.isDone"
+                    >
+                      {{ need.title }}
+                      @if (need.quantity) {
+                        <span class="text-xs text-content-muted">· {{ need.quantity }}</span>
+                      }
+                      @if (need.note) {
+                        <span class="block text-xs text-content-faint">{{ need.note }}</span>
+                      }
+                    </span>
+                  </li>
+                }
+              </ul>
+            </section>
+
+            <!-- Dokumente: was es braucht, und was in der Ablage liegt. -->
+            <section
+              aria-label="Dokumente"
+              class="rounded-xl border border-border bg-surface-raised p-4"
+            >
+              <h3
+                class="m-0 mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                <span
+                  ><a
+                    routerLink="/dokumente"
+                    class="text-content-muted underline-offset-2 hover:text-content hover:underline"
+                    >Dokumente</a
+                  >
+                  @if (needs(production, kinds.Document).length > 0) {
+                    <span class="font-normal tabular"
+                      >· {{ production.figures?.openPapers ?? 0 }} fehlen</span
+                    >
+                  }
+                </span>
+                <span class="flex items-center gap-2">
+                  @if (canManage()) {
+                    <button
+                      type="button"
+                      (click)="startNeeds(production, kinds.Document)"
+                      class="cursor-pointer border-0 bg-transparent p-0 text-[11px] font-normal normal-case tracking-normal text-content-muted underline-offset-2 hover:underline"
+                    >
+                      Liste bearbeiten
+                    </button>
+                  }
+                  @if (canFile()) {
+                    <!-- Die Datei geht in die Ablage und hängt sofort an der Produktion. -->
+                    <input
+                      #dateifeld
+                      type="file"
+                      class="hidden"
+                      (change)="fileChosen(production, $event)"
+                      aria-label="Dokument hochladen"
+                    />
+                    <button
+                      type="button"
+                      (click)="plusDocument()"
+                      aria-label="Dokument hinzufügen"
+                      title="Dokument hinzufügen"
+                      class="flex size-5 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent p-0 text-content-muted hover:text-content"
+                    >
+                      <souffleur-icon name="plus" [size]="12" />
+                    </button>
+                  }
+                </span>
+              </h3>
+              @if (needs(production, kinds.Document).length === 0) {
+                <p class="m-0 text-xs text-content-faint">
+                  Noch keine Liste. Aufführungsvertrag, Strichfassung, Pressetext -- welche Papiere
+                  es braucht.
+                </p>
+              }
+              <ul class="m-0 list-none space-y-1 p-0 text-sm">
+                @for (paper of needs(production, kinds.Document); track paper.id) {
+                  <li class="flex items-baseline gap-2">
+                    <input
+                      type="checkbox"
+                      [checked]="paper.isDone"
+                      [disabled]="!canManage()"
+                      (change)="toggleNeed(production, paper.id)"
+                      [attr.aria-label]="paper.title + (paper.isDone ? ' vorhanden' : ' fehlt')"
+                      class="mt-0.5"
+                    />
+                    <span class="min-w-0 flex-1" [class.text-content-muted]="paper.isDone">
+                      {{ paper.title }}
+                      @if (paper.note) {
+                        <span class="text-xs text-content-faint"> – {{ paper.note }}</span>
+                      }
+                    </span>
+                  </li>
+                }
+              </ul>
+
+              @if (overview(); as o) {
+                @if (o.documents.length > 0) {
+                  <p class="m-0 mb-1 mt-3 text-[11px] font-medium text-content-muted">
+                    In der Ablage
+                  </p>
+                  <ul class="m-0 list-none space-y-0.5 p-0 text-sm">
+                    @for (doc of o.documents; track doc.id) {
+                      <li class="flex items-center gap-2">
+                        <souffleur-icon
+                          name="dokumente"
+                          [size]="12"
+                          class="shrink-0 text-content-muted"
+                        />
+                        <a
+                          [routerLink]="['/dokumente']"
+                          [queryParams]="{ dokument: doc.id }"
+                          class="min-w-0 flex-1 truncate text-content underline-offset-2 hover:underline"
+                          >{{ doc.name }}</a
+                        >
+                        @if (doc.tags.length > 0) {
+                          <span class="shrink-0 text-xs text-content-faint">{{
+                            doc.tags.join(', ')
+                          }}</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                } @else if (needs(production, kinds.Document).length > 0) {
+                  <p class="m-0 mt-3 text-xs text-content-faint">
+                    Noch nichts aus der Ablage verknüpft.
+                  </p>
+                }
+              }
+            </section>
+
+            <!-- Aufgaben -->
+            <section
+              aria-label="Aufgaben"
+              class="rounded-xl border border-border bg-surface-raised p-4"
+            >
+              <h3
+                class="m-0 mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                <span
+                  ><a
+                    routerLink="/aufgaben"
+                    class="text-content-muted underline-offset-2 hover:text-content hover:underline"
+                    >Aufgaben</a
+                  >
+                  @if (production.figures && production.figures.tasks > 0) {
+                    <span class="font-normal tabular"
+                      >· {{ production.figures.openTasks }} offen</span
+                    >
+                  }
+                </span>
+                <button
+                  type="button"
+                  (click)="plusTask()"
+                  aria-label="Aufgabe hinzufügen"
+                  title="Aufgabe hinzufügen"
+                  class="flex size-5 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent p-0 text-content-muted hover:text-content"
+                >
+                  <souffleur-icon name="plus" [size]="12" />
+                </button>
+              </h3>
+              @if (overviewLoading()) {
+                <p class="m-0 text-xs text-content-muted">Einen Moment…</p>
+              } @else if (overview(); as o) {
+                @if (o.tasks.length === 0) {
+                  <p class="m-0 text-xs text-content-faint">
+                    Keine Aufgabe trägt diese Produktion.
+                  </p>
+                }
+                <ul class="m-0 list-none space-y-0.5 p-0 text-sm">
+                  @for (task of o.tasks; track task.id) {
+                    <li class="flex items-center gap-2" [class.opacity-60]="!task.isOpen">
+                      <span
+                        class="size-2 shrink-0 rounded-full"
+                        [style.background]="task.categoryColor ?? 'var(--color-border-strong)'"
+                      ></span>
+                      <a
+                        [routerLink]="['/aufgaben']"
+                        [queryParams]="
+                          task.isOpen ? { aufgabe: task.id } : { aufgabe: task.id, erledigte: 1 }
+                        "
+                        class="min-w-0 flex-1 truncate text-content underline-offset-2 hover:underline"
+                        [class.line-through]="!task.isOpen"
+                        >{{ task.title }}</a
+                      >
+                      @if (task.assigneeName || task.groupName) {
+                        <span class="shrink-0 text-xs text-content-muted">{{
+                          task.assigneeName ?? task.groupName
+                        }}</span>
+                      }
+                      @if (task.dueDate) {
+                        <span
+                          class="shrink-0 text-xs tabular"
+                          [class.text-critical]="task.isOverdue"
+                          [class.text-content-muted]="!task.isOverdue"
+                        >
+                          {{ task.dueDate | date: 'dd.MM.' }}
+                        </span>
+                      }
+                    </li>
+                  }
+                </ul>
+              }
+              @if (taskOpen()) {
+                <!-- Schnell notiert: nur der Titel, der Rest im Aufgabenmodul. Escape verwirft. -->
+                <form
+                  class="mt-2 flex gap-2"
+                  (submit)="$event.preventDefault(); addTask(production)"
+                  (keydown.escape)="taskOpen.set(false); newTask.set('')"
+                >
+                  <input
+                    #aufgabenfeld
+                    type="text"
+                    [ngModel]="newTask()"
+                    (ngModelChange)="newTask.set($event)"
+                    name="neueAufgabe"
+                    placeholder="Neue Aufgabe für diese Produktion"
+                    aria-label="Neue Aufgabe"
+                    class="min-w-0 flex-1 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+                  />
+                  <button
+                    type="submit"
+                    [disabled]="busy() || !newTask().trim()"
+                    class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content disabled:opacity-50"
+                  >
+                    Hinzufügen
+                  </button>
+                </form>
+              }
+            </section>
+
+            <!-- Termine -->
+            <section
+              aria-label="Termine"
+              class="rounded-xl border border-border bg-surface-raised p-4"
+            >
+              <h3
+                class="m-0 mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                <a
+                  routerLink="/kalender"
+                  class="text-content-muted underline-offset-2 hover:text-content hover:underline"
+                  >Termine</a
+                >
+                @if (canPlan()) {
+                  <button
+                    type="button"
+                    (click)="plusEvent()"
+                    aria-label="Termin hinzufügen"
+                    title="Termin hinzufügen"
+                    class="flex size-5 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent p-0 text-content-muted hover:text-content"
+                  >
+                    <souffleur-icon name="plus" [size]="12" />
+                  </button>
+                }
+              </h3>
+              @if (overviewLoading()) {
+                <p class="m-0 text-xs text-content-muted">Einen Moment…</p>
+              } @else if (overview(); as o) {
+                @for (serie of o.series; track serie.id) {
+                  <p class="m-0 mb-1 text-xs text-content-muted">
+                    <span class="text-content">{{ serie.title }}</span> · {{ serie.rule }}
+                    @if (serie.location) {
+                      · {{ serie.location }}
+                    }
+                  </p>
+                }
+                @if (upcoming(o).length === 0 && o.series.length === 0) {
+                  <p class="m-0 text-xs text-content-faint">
+                    Kein Termin trägt diese Produktion. Zugeordnet wird im Termin.
+                  </p>
+                }
+                <ul class="m-0 list-none space-y-0.5 p-0 text-sm tabular">
+                  @for (termin of upcoming(o); track termin.id) {
+                    <li class="flex items-center gap-2">
+                      <a
+                        [routerLink]="['/kalender']"
+                        [queryParams]="{ tag: localDate(termin.startsAt), termin: termin.id }"
+                        class="shrink-0 whitespace-nowrap text-content underline-offset-2 hover:underline"
+                      >
+                        @if (termin.isAllDay) {
+                          {{ termin.startsAt | date: 'EE dd.MM.yy' : undefined : 'de' }}
+                        } @else {
+                          {{ termin.startsAt | date: 'EE dd.MM.yy, HH:mm' : undefined : 'de' }}
+                        }
+                      </a>
+                      <span class="min-w-0 flex-1 truncate">{{ termin.title }}</span>
+                      @if (termin.location) {
+                        <span class="shrink-0 text-xs text-content-muted">{{
+                          termin.location
+                        }}</span>
+                      }
+                      @if (termin.status === 1) {
+                        <span class="shrink-0 text-xs text-content-faint">vorgemerkt</span>
+                      }
+                    </li>
+                  }
+                </ul>
+                @if (past(o) > 0) {
+                  <p class="m-0 mt-1 text-xs text-content-faint">
+                    {{ past(o) }} {{ past(o) === 1 ? 'Termin liegt' : 'Termine liegen' }} zurück.
+                  </p>
+                }
+              }
+            </section>
+
+            <!-- Lesezeichen: derselbe Baustein wie an Aufgabe, Kontakt und Gastspiel. -->
+            <section
+              aria-label="Lesezeichen"
+              class="rounded-xl border border-border bg-surface-raised p-4"
+            >
+              <souffleur-lesezeichen target="Production" [targetId]="production.id" />
+            </section>
+
+            <!-- Recherche -->
+            <section
+              aria-label="Recherche"
+              class="rounded-xl border border-border bg-surface-raised p-4"
+            >
+              <h3
+                class="m-0 mb-2 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Recherche
+              </h3>
+              @if (production.research) {
+                <p class="m-0 whitespace-pre-line text-sm leading-relaxed">
+                  {{ production.research }}
+                </p>
+              } @else {
+                <p class="m-0 text-xs text-content-faint">
+                  Noch nichts zusammengetragen. Textgrundlage, Rechte, Vergleichsinszenierungen,
+                  offene Fragen.
+                </p>
+              }
+            </section>
+
+            <!-- Belege -->
+            @if (overview(); as o) {
+              @if (o.vouchers !== null) {
+                <section
+                  aria-label="Finanzen"
+                  class="rounded-xl border border-border bg-surface-raised p-4"
+                >
+                  <h3
+                    class="m-0 mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+                  >
+                    <a
+                      routerLink="/finanzen/belege"
+                      class="text-content-muted underline-offset-2 hover:text-content hover:underline"
+                      >Belege</a
+                    >
+                    @if (canBook()) {
+                      <button
+                        type="button"
+                        (click)="plusVoucher()"
+                        aria-label="Beleg hinzufügen"
+                        title="Beleg hinzufügen"
+                        class="flex size-5 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent p-0 text-content-muted hover:text-content"
+                      >
+                        <souffleur-icon name="plus" [size]="12" />
+                      </button>
+                    }
+                  </h3>
+                  @if (o.vouchers.length === 0) {
+                    <p class="m-0 text-xs text-content-faint">
+                      Kein Beleg trägt diese Produktion. Die Zuordnung steht im Beleg.
+                    </p>
+                  }
+                  <ul class="m-0 list-none space-y-0.5 p-0 text-sm">
+                    @for (beleg of o.vouchers; track beleg.id) {
+                      <li class="flex items-center gap-2">
+                        <a
+                          [routerLink]="['/finanzen/belege']"
+                          [queryParams]="{ beleg: beleg.id, jahr: beleg.fiscalYear }"
+                          class="font-mono text-xs text-content underline-offset-2 hover:underline"
+                          >{{ beleg.label }}</a
+                        >
+                        <span class="min-w-0 flex-1 truncate">{{ beleg.description }}</span>
+                        <span
+                          class="shrink-0 font-mono text-xs tabular"
+                          [class.text-content-muted]="beleg.direction === 1"
+                        >
+                          {{ beleg.direction === 1 ? '−' : '+'
+                          }}{{ beleg.grossAmount | currency: 'EUR' : '' : '1.2-2' : 'de' }}
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                </section>
+              }
+
+              <!-- Tourneen -->
+              @if (touringOn()) {
+                <section
+                  aria-label="Tourneen"
+                  class="rounded-xl border border-border bg-surface-raised p-4"
+                >
+                  <h3
+                    class="m-0 mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+                  >
+                    <a
+                      routerLink="/touring"
+                      class="text-content-muted underline-offset-2 hover:text-content hover:underline"
+                      >Tourneen</a
+                    >
+                  </h3>
+                  @if (o.tours.length === 0) {
+                    <p class="m-0 text-xs text-content-faint">
+                      Diese Produktion reist nicht. Eine Tournee wählt ihre Produktion im Touring.
+                    </p>
+                  }
+                  <ul class="m-0 list-none space-y-0.5 p-0 text-sm">
+                    @for (tour of o.tours; track tour.id) {
+                      <li class="flex items-center gap-2">
+                        <souffleur-icon
+                          name="touring"
+                          [size]="12"
+                          class="shrink-0 text-content-muted"
+                        />
+                        <a
+                          routerLink="/touring"
+                          class="min-w-0 flex-1 truncate text-content underline-offset-2 hover:underline"
+                          >{{ tour.title }}</a
+                        >
+                        <span class="shrink-0 text-xs text-content-muted tabular">
+                          {{ tour.bindingStops }}/{{ tour.stops }}
+                          {{ tour.stops === 1 ? 'Gastspiel' : 'Gastspiele' }}
+                          @if (canSeeFinance() && tour.confirmedFees > 0) {
+                            · {{ tour.confirmedFees | currency: 'EUR' : 'symbol' : '1.0-0' : 'de' }}
+                          }
+                        </span>
+                      </li>
+                    }
+                  </ul>
+                </section>
+              }
+            }
+          </article>
+        }
+      </div>
+    </div>
+  }
+</div>
+
+<!-- Stammdaten: anlegen oder ändern. -->
+@if (editing() === 'neu' || editing() === 'stammdaten') {
+  <souffleur-dialog
+    [heading]="editing() === 'neu' ? 'Produktion anlegen' : 'Produktion ändern'"
+    note="Titel wie im Spielplan, Stand, Termine, Budget -- und die Texte dazu. Rollen, Positionen, Bedarf und Lesezeichen haben ihre eigenen Abschnitte im Buch."
+    size="breit"
+    (closed)="cancel()"
+  >
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    <div class="grid gap-3 md:grid-cols-[1fr_1fr]">
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Titel</span>
+        <input
+          type="text"
+          [ngModel]="draft().title"
+          (ngModelChange)="patch({ title: $event })"
+          placeholder="Wie heißt das Stück im Spielplan?"
+          aria-label="Titel"
+          class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Untertitel</span>
+        <input
+          type="text"
+          [ngModel]="draft().subtitle"
+          (ngModelChange)="patch({ subtitle: $event })"
+          placeholder="Autorin, Komponist, Zusatz"
+          aria-label="Untertitel"
+          class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+    </div>
+
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Stand</span>
+        <select
+          [ngModel]="draft().status"
+          (ngModelChange)="patch({ status: $event })"
+          aria-label="Stand"
+          class="w-40 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          @for (status of statuses(); track status.status) {
+            <option [ngValue]="status.status">{{ status.label }}</option>
+          }
+        </select>
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Premiere</span>
+        <input
+          type="date"
+          [ngModel]="draft().premiereDate"
+          (ngModelChange)="patch({ premiereDate: $event })"
+          aria-label="Premiere"
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Derniere</span>
+        <input
+          type="date"
+          [ngModel]="draft().closingDate"
+          (ngModelChange)="patch({ closingDate: $event })"
+          aria-label="Derniere"
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted"
+          >Budget, brutto in Euro</span
+        >
+        <input
+          type="text"
+          inputmode="decimal"
+          [ngModel]="draft().budget"
+          (ngModelChange)="patch({ budget: $event })"
+          placeholder="z. B. 18000"
+          aria-label="Budget"
+          class="w-32 rounded-md border border-border bg-surface px-2 py-1.5 text-right text-sm text-content tabular"
+        />
+      </label>
+    </div>
+
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Beschreibung</span>
+      <textarea
+        rows="4"
+        [ngModel]="draft().description"
+        (ngModelChange)="patch({ description: $event })"
+        placeholder="Worum es geht, wer spielt, wie lang -- der Text, der auch nach außen gehen könnte."
+        aria-label="Beschreibung"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      ></textarea>
+    </label>
+
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Recherche</span>
+      <textarea
+        rows="3"
+        [ngModel]="draft().research"
+        (ngModelChange)="patch({ research: $event })"
+        placeholder="Textgrundlage, Rechte, Vergleichsinszenierungen, offene Fragen."
+        aria-label="Recherche"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      ></textarea>
+    </label>
+
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Notizen</span>
+      <textarea
+        rows="2"
+        [ngModel]="draft().notes"
+        (ngModelChange)="patch({ notes: $event })"
+        aria-label="Notizen"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      ></textarea>
+    </label>
+
+    <ng-container dialogActions>
+      <button
+        type="button"
+        (click)="cancel()"
+        class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+      >
+        Abbrechen
+      </button>
+      <button
+        type="button"
+        (click)="save()"
+        [disabled]="busy()"
+        class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+      >
+        Speichern
+      </button>
+    </ng-container>
+  </souffleur-dialog>
+}
+
+<!-- Besetzung: Rollen anlegen und besetzen. -->
+@if (editing() === 'besetzung') {
+  <souffleur-dialog
+    heading="Besetzung"
+    note="Jede Zeile eine Rolle oder Funktion. Wer sie hat, kommt aus dem Adressbuch -- ohne Person bleibt die Rolle offen und steht trotzdem auf dem Zettel."
+    size="weit"
+    (closed)="cancel()"
+  >
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    @if (rolesDraft().length === 0) {
+      <p class="m-0 text-xs text-content-faint">Noch keine Rolle.</p>
+    }
+    <ul class="m-0 list-none space-y-1.5 p-0" aria-label="Rollen">
+      @for (role of rolesDraft(); track $index; let i = $index) {
+        <li class="flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            [ngModel]="role.name"
+            (ngModelChange)="patchRole(i, { name: $event })"
+            placeholder="Rolle oder Funktion"
+            aria-label="Rolle"
+            class="w-44 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+          />
+          <select
+            [ngModel]="role.functionId"
+            (ngModelChange)="patchRole(i, { functionId: $event })"
+            aria-label="Bereich"
+            class="w-36 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+          >
+            <option [ngValue]="null">— Bereich —</option>
+            @for (entry of functions(); track entry.id) {
+              <option [ngValue]="entry.id">{{ entry.label }}</option>
+            }
+          </select>
+          <select
+            [ngModel]="role.contactId"
+            (ngModelChange)="patchRole(i, { contactId: $event })"
+            aria-label="Besetzt mit"
+            class="w-48 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+          >
+            <option [ngValue]="null">— offen —</option>
+            @for (person of people(); track person.id) {
+              <option [ngValue]="person.id">{{ person.name }}</option>
+            }
+          </select>
+          <input
+            type="text"
+            [ngModel]="role.note ?? ''"
+            (ngModelChange)="patchRole(i, { note: $event })"
+            placeholder="Notiz"
+            aria-label="Notiz zur Rolle"
+            class="w-40 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+          />
+          <button
+            type="button"
+            (click)="removeRole(i)"
+            class="cursor-pointer border-0 bg-transparent text-xs text-content-muted hover:text-content"
+            aria-label="Rolle entfernen"
+          >
+            Entfernen
+          </button>
+        </li>
+      }
+    </ul>
+    <button
+      type="button"
+      (click)="addRole()"
+      class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+    >
+      Rolle hinzufügen
+    </button>
+
+    <ng-container dialogActions>
+      <button
+        type="button"
+        (click)="cancel()"
+        class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+      >
+        Abbrechen
+      </button>
+      <button
+        type="button"
+        (click)="saveRoles()"
+        [disabled]="busy()"
+        class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+      >
+        Speichern
+      </button>
+    </ng-container>
+  </souffleur-dialog>
+}
+
+<!-- Budget: die Positionen, die es verteilen. -->
+@if (editing() === 'budget') {
+  <souffleur-dialog
+    heading="Budgetpositionen"
+    note="Wofür das Budget gedacht ist, Position für Position, brutto. Die Summe steht unten gegen das Budget."
+    size="weit"
+    (closed)="cancel()"
+  >
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    <datalist id="budget-bereiche">
+      @for (category of categories; track category) {
+        <option [value]="category"></option>
+      }
+    </datalist>
+
+    @if (budgetDraft().length === 0) {
+      <p class="m-0 text-xs text-content-faint">Noch keine Position.</p>
+    }
+    <ul class="m-0 list-none space-y-1.5 p-0" aria-label="Budgetpositionen">
+      @for (line of budgetDraft(); track $index; let i = $index) {
+        <li class="flex flex-wrap items-center gap-2">
+          <input
+            type="text"
+            [ngModel]="line.title"
+            (ngModelChange)="patchBudgetLine(i, { title: $event })"
+            placeholder="Bezeichnung"
+            aria-label="Bezeichnung der Position"
+            class="w-52 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+          />
+          <input
+            type="text"
+            list="budget-bereiche"
+            [ngModel]="line.category"
+            (ngModelChange)="patchBudgetLine(i, { category: $event })"
+            placeholder="Bereich"
+            aria-label="Bereich der Position"
+            class="w-32 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+          />
+          <input
+            type="text"
+            inputmode="decimal"
+            [ngModel]="line.amount"
+            (ngModelChange)="patchBudgetLine(i, { amount: $event })"
+            placeholder="Betrag"
+            aria-label="Betrag der Position"
+            class="w-28 rounded-md border border-border bg-surface px-2 py-1 text-right text-sm text-content tabular"
+          />
+          <input
+            type="text"
+            [ngModel]="line.note"
+            (ngModelChange)="patchBudgetLine(i, { note: $event })"
+            placeholder="Notiz"
+            aria-label="Notiz zur Position"
+            class="w-44 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+          />
+          <button
+            type="button"
+            (click)="removeBudgetLine(i)"
+            class="cursor-pointer border-0 bg-transparent text-xs text-content-muted hover:text-content"
+            aria-label="Position entfernen"
+          >
+            Entfernen
+          </button>
+        </li>
+      }
+    </ul>
+    <div class="flex items-center justify-between">
+      <button
+        type="button"
+        (click)="addBudgetLine()"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+      >
+        Position hinzufügen
+      </button>
+      <p class="m-0 text-sm tabular">
+        <span class="text-xs text-content-muted">Summe</span>
+        <span class="ml-2 font-mono">{{
+          budgetDraftTotal() | currency: 'EUR' : 'symbol' : '1.0-0' : 'de'
+        }}</span>
+        @if (current()?.budget; as etat) {
+          <span class="ml-1 text-xs text-content-faint"
+            >von {{ etat | currency: 'EUR' : 'symbol' : '1.0-0' : 'de' }}</span
+          >
+        }
+      </p>
+    </div>
+
+    <ng-container dialogActions>
+      <button
+        type="button"
+        (click)="cancel()"
+        class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+      >
+        Abbrechen
+      </button>
+      <button
+        type="button"
+        (click)="saveBudget()"
+        [disabled]="busy()"
+        class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+      >
+        Speichern
+      </button>
+    </ng-container>
+  </souffleur-dialog>
+}
+
+<!-- Bedarf und Papiere: dieselbe Liste, zwei Arten. -->
+@if (editing() === 'bedarf' || editing() === 'papiere') {
+  <souffleur-dialog
+    [heading]="editing() === 'papiere' ? 'Dokumente, die es braucht' : 'Bedarf'"
+    [note]="
+      editing() === 'papiere'
+        ? 'Welche Papiere die Produktion braucht -- Verträge, Fassungen, Pressematerial. Abgehakt, sobald sie da sind; die Dateien selbst liegen in der Ablage.'
+        : 'Was beschafft oder gebaut werden muss -- Requisite, Kostüm, Technik, Material. Abgehakt, sobald es da ist.'
+    "
+    size="weit"
+    (closed)="cancel()"
+  >
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    @if (needsDraft().length === 0) {
+      <p class="m-0 text-xs text-content-faint">Noch nichts eingetragen.</p>
+    }
+    <ul
+      class="m-0 list-none space-y-1.5 p-0"
+      [attr.aria-label]="editing() === 'papiere' ? 'Papiere' : 'Bedarf'"
+    >
+      @for (need of needsDraft(); track $index; let i = $index) {
+        <li class="flex flex-wrap items-center gap-2">
+          <input
+            type="checkbox"
+            [ngModel]="need.isDone"
+            (ngModelChange)="patchNeed(i, { isDone: $event })"
+            [attr.aria-label]="editing() === 'papiere' ? 'Vorhanden' : 'Beschafft'"
+          />
+          <input
+            type="text"
+            [ngModel]="need.title"
+            (ngModelChange)="patchNeed(i, { title: $event })"
+            placeholder="Bezeichnung"
+            aria-label="Bezeichnung"
+            class="w-64 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+          />
+          @if (editing() === 'bedarf') {
+            <input
+              type="text"
+              [ngModel]="need.quantity ?? ''"
+              (ngModelChange)="patchNeed(i, { quantity: $event })"
+              placeholder="Menge"
+              aria-label="Menge"
+              class="w-28 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+            />
+          }
+          <input
+            type="text"
+            [ngModel]="need.note ?? ''"
+            (ngModelChange)="patchNeed(i, { note: $event })"
+            placeholder="Notiz"
+            aria-label="Notiz"
+            class="w-48 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+          />
+          <button
+            type="button"
+            (click)="removeNeed(i)"
+            class="cursor-pointer border-0 bg-transparent text-xs text-content-muted hover:text-content"
+            aria-label="Eintrag entfernen"
+          >
+            Entfernen
+          </button>
+        </li>
+      }
+    </ul>
+    <button
+      type="button"
+      (click)="addNeed(editing() === 'papiere' ? kinds.Document : kinds.Material)"
+      class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+    >
+      {{ editing() === 'papiere' ? 'Papier hinzufügen' : 'Bedarf hinzufügen' }}
+    </button>
+
+    <ng-container dialogActions>
+      <button
+        type="button"
+        (click)="cancel()"
+        class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+      >
+        Abbrechen
+      </button>
+      <button
+        type="button"
+        (click)="saveNeeds()"
+        [disabled]="busy()"
+        class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+      >
+        Speichern
+      </button>
+    </ng-container>
+  </souffleur-dialog>
+}
+
+<!-- Termin: der volle Dialog des Kalenders, die Produktion steht schon im Feld. -->
+@if (editing() === 'termin' && current(); as production) {
+  <souffleur-event-dialog
+    [date]="production.premiereDate ?? today"
+    [categories]="eventCategories()"
+    [resources]="resources()"
+    [people]="people()"
+    [functions]="functions()"
+    [productions]="[production]"
+    [production]="production.id"
+    (saved)="afterEvent()"
+    (closed)="cancel()"
+  />
+}
+
+<!-- Beleg: das Nötigste, zugeordnet. Kontakt, Fälligkeit und Buchung im Belegbogen. -->
+@if (editing() === 'beleg' && current(); as production) {
+  <souffleur-dialog
+    heading="Beleg zur Produktion"
+    [note]="
+      'Datum, Richtung, Betrag brutto, Beschreibung -- der Beleg trägt „' +
+      production.title +
+      '“. Lieferant, Fälligkeit und Buchung folgen im Belegbogen unter Finanzen.'
+    "
+    (closed)="cancel()"
+  >
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Datum</span>
+        <input
+          type="date"
+          [ngModel]="voucherDraft().date"
+          (ngModelChange)="patchVoucher({ date: $event })"
+          aria-label="Belegdatum"
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Richtung</span>
+        <select
+          [ngModel]="voucherDraft().direction"
+          (ngModelChange)="patchVoucher({ direction: $event })"
+          aria-label="Richtung"
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          @for (direction of directions; track direction.value) {
+            <option [ngValue]="direction.value">{{ direction.label }}</option>
+          }
+        </select>
+      </label>
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Betrag, brutto</span>
+        <input
+          type="text"
+          inputmode="decimal"
+          [ngModel]="voucherDraft().grossAmount"
+          (ngModelChange)="patchVoucher({ grossAmount: $event })"
+          placeholder="z. B. 1.200,00"
+          aria-label="Betrag"
+          class="w-32 rounded-md border border-border bg-surface px-2 py-1.5 text-right text-sm text-content tabular"
+        />
+      </label>
+    </div>
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Beschreibung</span>
+      <input
+        type="text"
+        [ngModel]="voucherDraft().description"
+        (ngModelChange)="patchVoucher({ description: $event })"
+        placeholder="Wofür, von wem"
+        aria-label="Beschreibung"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      />
+    </label>
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Datei, falls vorhanden</span>
+      <input
+        type="file"
+        (change)="voucherFile($event)"
+        aria-label="Belegdatei"
+        class="block text-sm text-content"
+      />
+    </label>
+
+    <ng-container dialogActions>
+      <button
+        type="button"
+        (click)="cancel()"
+        class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+      >
+        Abbrechen
+      </button>
+      <button
+        type="button"
+        (click)="saveVoucher()"
+        [disabled]="busy()"
+        class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+      >
+        Speichern
+      </button>
+    </ng-container>
+  </souffleur-dialog>
+}
+
+<!-- Löschen: endgültig, und nur ohne Anhang. Meist ist Abspielen gemeint. -->
+@if (editing() === 'loeschen' && current(); as production) {
+  <souffleur-dialog
+    [heading]="'Produktion „' + production.title + '“ löschen?'"
+    note="Löschen ist endgültig und geht nur, solange nichts an der Produktion hängt. Hängen Aufgaben, Termine, Belege, Dokumente oder Tourneen daran, wird sie abgespielt: Sie bleibt stehen, verschwindet aber aus den Auswahlfeldern und aus dem Register."
+    (closed)="cancel()"
+  >
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+    <dl class="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm tabular">
+      <dt class="text-xs text-content-muted">Stand</dt>
+      <dd class="m-0">{{ production.statusLabel }}</dd>
+      @if (production.figures; as f) {
+        <dt class="text-xs text-content-muted">Daran hängt</dt>
+        <dd class="m-0">
+          @if (f.tasks + f.events + f.documents + f.tours === 0 && !f.costs && !f.income) {
+            nichts
+          } @else {
+            {{ f.tasks }} Aufgaben · {{ f.events }} Termine · {{ f.documents }} Dokumente ·
+            {{ f.tours }} Tourneen
+          }
+        </dd>
+      }
+    </dl>
+
+    <ng-container dialogActions>
+      <button
+        type="button"
+        (click)="cancel()"
+        class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+      >
+        Abbrechen
+      </button>
+      @if (production.status !== status.Archived) {
+        <button
+          type="button"
+          (click)="archive(production)"
+          [disabled]="busy()"
+          class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content disabled:opacity-60"
+        >
+          Abspielen
+        </button>
+      }
+      <button
+        type="button"
+        (click)="remove(production)"
+        [disabled]="busy()"
+        class="cursor-pointer rounded-lg border-0 bg-critical px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+      >
+        Endgültig löschen
+      </button>
+    </ng-container>
+  </souffleur-dialog>
+}

@@ -1,0 +1,21 @@
+# Ordner der Synology fuer die Ablage (ADR-0013).
+#
+# Als docker-compose.override.yml neben die docker-compose.yml legen. Docker
+# liest sie von selbst mit, und git pull ueberschreibt sie nie -- was hier
+# steht, gehoert dem Haus.
+#
+# Jede Freigabe, mit der souffleur arbeiten soll, bekommt eine Zeile: links
+# der Ordner auf der Synology, rechts derselbe Name unter /ablage. Welche
+# Unterordner welches Modul nimmt, stellt man danach in souffleur ein
+# (Einstellungen -> Ordner der Ablage).
+#
+# souffleur laeuft als SOUFFLEUR_USER aus der .env. Dieser Benutzer braucht
+# in der DSM Lese- und Schreibrecht auf jede Freigabe hier -- sonst sieht
+# souffleur die Ordner, kann aber nichts ablegen.
+services:
+  souffleur:
+    environment:
+      Souffleur__Ablage__Pfad: /ablage
+    volumes:
+      - /volume1/Verwaltung:/ablage/Verwaltung
+      - /volume1/Produktionen:/ablage/Produktionen

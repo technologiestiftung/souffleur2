@@ -1,0 +1,504 @@
+<div class="flex h-full flex-col p-6">
+  <header class="mb-4">
+    <h1 class="font-display text-2xl font-bold tracking-tight">Kontakte</h1>
+    <p class="mt-1 text-sm text-content-muted">
+      Das Adressbuch des Hauses. Buchhaltung, Belege und Aufgaben greifen darauf zu.
+    </p>
+  </header>
+
+  <souffleur-metric-strip module="kontakte" class="mb-5 block shrink-0" />
+
+  @if (loading()) {
+    <p class="text-sm text-content-muted">Einen Moment…</p>
+  } @else {
+    <div class="mb-3 flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        (click)="startNew()"
+        class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover"
+      >
+        Kontakt anlegen
+      </button>
+
+      <label class="relative">
+        <span class="sr-only">Suchen</span>
+        <input
+          type="search"
+          placeholder="Name, E-Mail oder Ort"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+          class="w-64 rounded-lg border border-border bg-surface-raised px-3 py-2 text-sm text-content placeholder:text-content-faint"
+        />
+      </label>
+
+      @for (role of roles(); track role.key) {
+        @if (countFor(role.role)) {
+          <button
+            type="button"
+            (click)="toggleRole(role.role)"
+            [attr.aria-pressed]="roleFilter() === role.role"
+            [class]="
+              roleFilter() === role.role
+                ? 'rounded-full border border-brand bg-brand px-3 py-1 text-xs font-semibold text-brand-contrast'
+                : 'rounded-full border border-border bg-surface-raised px-3 py-1 text-xs text-content-muted hover:border-border-strong'
+            "
+          >
+            {{ role.label }} <span class="tabular">{{ countFor(role.role) }}</span>
+          </button>
+        }
+      }
+    </div>
+
+    @if (open()) {
+      <souffleur-dialog [heading]="heading()" size="breit" (closed)="cancel()">
+        @if (problems().length) {
+          <souffleur-meldung class="mb-3" [texte]="problems()" />
+        }
+
+        <div class="mb-3 flex items-center gap-1" role="group" aria-label="Art des Kontakts">
+          @for (
+            option of [
+              { value: kinds.Organization, label: 'Organisation' },
+              { value: kinds.Person, label: 'Person' },
+            ];
+            track option.value
+          ) {
+            <button
+              type="button"
+              (click)="patch({ kind: option.value })"
+              [attr.aria-pressed]="draft().kind === option.value"
+              class="cursor-pointer rounded-md border px-2.5 py-1 text-xs"
+              [class.bg-brand]="draft().kind === option.value"
+              [class.text-brand-contrast]="draft().kind === option.value"
+              [class.border-brand]="draft().kind === option.value"
+              [class.border-border]="draft().kind !== option.value"
+              [class.text-content]="draft().kind !== option.value"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+
+        <div class="mb-3 flex flex-wrap items-end gap-3">
+          @if (draft().kind === kinds.Person) {
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-content-muted">Nachname</span>
+              <input
+                type="text"
+                [ngModel]="draft().surname"
+                (ngModelChange)="patch({ surname: $event })"
+                aria-label="Nachname"
+                class="w-48 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+              />
+            </label>
+
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-content-muted">Vorname</span>
+              <input
+                type="text"
+                [ngModel]="draft().givenName"
+                (ngModelChange)="patch({ givenName: $event })"
+                aria-label="Vorname"
+                class="w-48 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+              />
+            </label>
+          } @else {
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-content-muted">Name</span>
+              <input
+                type="text"
+                [ngModel]="draft().name"
+                (ngModelChange)="patch({ name: $event })"
+                aria-label="Name"
+                class="w-80 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+              />
+            </label>
+          }
+
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Funktion</span>
+            <input
+              type="text"
+              [ngModel]="draft().position"
+              (ngModelChange)="patch({ position: $event })"
+              aria-label="Funktion"
+              class="w-48 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            />
+          </label>
+        </div>
+
+        <div class="mb-3">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Rollen</span>
+          <div class="flex flex-wrap gap-1.5">
+            @for (role of roles(); track role.key) {
+              <button
+                type="button"
+                (click)="toggleDraftRole(role.role)"
+                [attr.aria-pressed]="hasRole(role.role)"
+                [class]="
+                  hasRole(role.role)
+                    ? 'cursor-pointer rounded-full border border-brand bg-brand px-3 py-1 text-xs font-semibold text-brand-contrast'
+                    : 'cursor-pointer rounded-full border border-border bg-surface px-3 py-1 text-xs text-content-muted hover:border-border-strong'
+                "
+              >
+                {{ role.label }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="mb-3 flex flex-wrap items-end gap-3">
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">E-Mail</span>
+            <input
+              type="email"
+              [ngModel]="draft().email"
+              (ngModelChange)="patch({ email: $event })"
+              aria-label="E-Mail"
+              class="w-56 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            />
+          </label>
+
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Telefon</span>
+            <input
+              type="tel"
+              [ngModel]="draft().phone"
+              (ngModelChange)="patch({ phone: $event })"
+              aria-label="Telefon"
+              class="w-40 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            />
+          </label>
+
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Straße</span>
+            <input
+              type="text"
+              [ngModel]="draft().street"
+              (ngModelChange)="patch({ street: $event })"
+              aria-label="Straße"
+              class="w-56 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            />
+          </label>
+
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">PLZ</span>
+            <input
+              type="text"
+              [ngModel]="draft().postalCode"
+              (ngModelChange)="patch({ postalCode: $event })"
+              aria-label="PLZ"
+              class="w-20 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content tabular"
+            />
+          </label>
+
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Ort</span>
+            <input
+              type="text"
+              [ngModel]="draft().city"
+              (ngModelChange)="patch({ city: $event })"
+              aria-label="Ort"
+              class="w-40 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            />
+          </label>
+        </div>
+
+        @if (wantsAccount()) {
+          <label class="mb-3 block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Benutzerkonto</span>
+            <select
+              [ngModel]="draft().userId"
+              (ngModelChange)="patch({ userId: $event })"
+              aria-label="Benutzerkonto"
+              class="w-72 rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            >
+              <option value="">— keines —</option>
+              @for (account of accounts(); track account.id) {
+                <option [value]="account.id">
+                  {{ account.name }}
+                  @if (account.email) {
+                    · {{ account.email }}
+                  }
+                  @if (account.linkedTo) {
+                    — schon bei {{ account.linkedTo }}
+                  }
+                </option>
+              }
+            </select>
+            <span class="mt-1 block max-w-prose text-xs text-content-muted">
+              Verbindet diese Person mit ihrer Anmeldung. Erst dann kann sie ihre eigenen Zeiten
+              stempeln — gestempelt wird auf den Menschen, nicht auf das Konto.
+            </span>
+          </label>
+        }
+
+        <!-- Produktionen: Die Besetzung wird im Produktionsbuch geführt; hier steht,
+             wo diese Person drinsteht, und eine Rolle lässt sich von hier aus setzen. -->
+        @if (productionsOn() && editing(); as current) {
+          @if (current.kind === kinds.Person) {
+            <div class="mb-3" role="group" aria-label="Produktionen">
+              <span class="mb-1 block text-xs font-medium text-content-muted">Produktionen</span>
+              @if (castings().length === 0) {
+                <p class="m-0 mb-1.5 text-xs text-content-faint">In keiner Produktion besetzt.</p>
+              }
+              <ul class="m-0 mb-1.5 list-none space-y-0.5 p-0 text-sm">
+                @for (casting of castings(); track casting.roleId) {
+                  <li class="flex flex-wrap items-baseline gap-x-2">
+                    <a
+                      [routerLink]="['/produktionen']"
+                      [queryParams]="{ produktion: casting.productionId }"
+                      (click)="cancel()"
+                      class="text-content underline-offset-2 hover:underline"
+                      >{{ casting.productionTitle }}</a
+                    >
+                    <span class="text-xs text-content-muted">
+                      · {{ casting.roleName }}
+                      @if (casting.functionLabel) {
+                        ({{ casting.functionLabel }})
+                      }
+                      @if (!casting.isCurrent) {
+                        · {{ casting.statusLabel }}
+                      }
+                    </span>
+                    <button
+                      type="button"
+                      (click)="removeCasting(current, casting)"
+                      [disabled]="busy()"
+                      class="cursor-pointer border-0 bg-transparent p-0 text-xs text-content-muted hover:text-content"
+                      [attr.aria-label]="
+                        'Rolle ' +
+                        casting.roleName +
+                        ' in ' +
+                        casting.productionTitle +
+                        ' entfernen'
+                      "
+                    >
+                      Entfernen
+                    </button>
+                  </li>
+                }
+              </ul>
+              @if (productionChoices().length > 0) {
+                <div class="flex flex-wrap items-center gap-2">
+                  <select
+                    [ngModel]="newCasting().productionId"
+                    (ngModelChange)="patchCasting({ productionId: $event })"
+                    aria-label="Produktion"
+                    class="w-56 rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-content"
+                  >
+                    <option value="">— Produktion wählen —</option>
+                    @for (production of productionChoices(); track production.id) {
+                      <option [value]="production.id">{{ production.title }}</option>
+                    }
+                  </select>
+                  <input
+                    type="text"
+                    [ngModel]="newCasting().roleName"
+                    (ngModelChange)="patchCasting({ roleName: $event })"
+                    placeholder="Rolle, z. B. Ophelia oder Regie"
+                    aria-label="Rolle in der Produktion"
+                    class="w-56 rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-content"
+                  />
+                  <button
+                    type="button"
+                    (click)="addCasting(current)"
+                    [disabled]="busy() || !newCasting().productionId"
+                    class="cursor-pointer rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-xs text-content disabled:opacity-50"
+                  >
+                    In Produktion besetzen
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        }
+
+        @if (wantsBank()) {
+          <div class="mb-3 flex flex-wrap items-end gap-3">
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-content-muted">IBAN</span>
+              <input
+                type="text"
+                [ngModel]="draft().iban"
+                (ngModelChange)="patch({ iban: $event })"
+                aria-label="IBAN"
+                class="w-72 rounded-md border border-border bg-surface px-2 py-1.5 font-mono text-sm text-content"
+              />
+            </label>
+
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-content-muted">BIC</span>
+              <input
+                type="text"
+                [ngModel]="draft().bic"
+                (ngModelChange)="patch({ bic: $event })"
+                aria-label="BIC"
+                class="w-36 rounded-md border border-border bg-surface px-2 py-1.5 font-mono text-sm text-content"
+              />
+            </label>
+
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-content-muted"
+                >Zahlungsziel, Tage</span
+              >
+              <input
+                type="number"
+                min="0"
+                [ngModel]="draft().paymentTermDays"
+                (ngModelChange)="patch({ paymentTermDays: $event })"
+                aria-label="Zahlungsziel in Tagen"
+                class="w-24 rounded-md border border-border bg-surface px-2 py-1.5 text-right text-sm text-content tabular"
+              />
+            </label>
+          </div>
+        }
+
+        <label class="mb-3 flex items-center gap-2 text-xs text-content-muted">
+          <input
+            type="checkbox"
+            [ngModel]="draft().mayBeContacted"
+            (ngModelChange)="patch({ mayBeContacted: $event })"
+          />
+          <span>Darf angeschrieben werden (Einwilligung liegt vor)</span>
+        </label>
+
+        <!-- Website, Presseseite, Profil -- was man zu diesem Kontakt im Netz findet. -->
+        <souffleur-lesezeichen
+          class="mb-3 border-t border-border pt-3"
+          target="Contact"
+          [targetId]="editing()?.id ?? null"
+          [ausstehend]="pendingBookmarks()"
+          (ausstehendChange)="pendingBookmarks.set($event)"
+        />
+
+        @if (editing(); as current) {
+          <button
+            dialogActions
+            type="button"
+            (click)="deactivate(current)"
+            [disabled]="busy()"
+            title="Der Kontakt bleibt erhalten, taucht aber nicht mehr in den Listen auf"
+            class="mr-auto cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-critical disabled:opacity-60"
+          >
+            Stilllegen
+          </button>
+        }
+
+        <button
+          dialogActions
+          type="button"
+          (click)="cancel()"
+          class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+        >
+          Abbrechen
+        </button>
+
+        <button
+          dialogActions
+          type="button"
+          (click)="save()"
+          [disabled]="busy()"
+          class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+        >
+          {{ busy() ? 'Wird gespeichert …' : 'Speichern' }}
+        </button>
+      </souffleur-dialog>
+    }
+
+    @if (!shown().length) {
+      <div class="rounded-xl border border-border bg-surface-raised p-6">
+        <p class="text-sm text-content-muted">
+          @if (contacts().length) {
+            Kein Kontakt passt zur Suche.
+          } @else {
+            Noch keine Kontakte. Oben steht der Knopf „Kontakt anlegen“.
+          }
+        </p>
+      </div>
+    } @else {
+      <div class="min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-surface-raised">
+        <table class="w-full border-collapse text-sm">
+          <thead class="sticky top-0 bg-surface-sunken">
+            <tr class="border-b border-border text-left">
+              <th
+                scope="col"
+                class="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Name
+              </th>
+              <th
+                scope="col"
+                class="px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Rollen
+              </th>
+              <th
+                scope="col"
+                class="px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Ort
+              </th>
+              <th
+                scope="col"
+                class="px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                E-Mail
+              </th>
+              <th
+                scope="col"
+                class="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Bank
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (contact of shown(); track contact.id) {
+              <tr
+                class="cursor-pointer border-b border-border/60 hover:bg-surface-sunken"
+                [class.opacity-60]="!contact.isActive"
+                (click)="startEdit(contact)"
+              >
+                <td class="px-3 py-2">
+                  <span class="font-medium">{{ contact.name }}</span>
+                  @if (contact.position) {
+                    <span class="block text-xs text-content-muted">{{ contact.position }}</span>
+                  }
+                </td>
+                <td class="px-2 py-2">
+                  <span class="flex flex-wrap gap-1">
+                    @for (role of contact.roles; track role.key) {
+                      <span
+                        class="rounded bg-surface-sunken px-1.5 py-0.5 text-[11px] text-content-muted"
+                      >
+                        {{ role.label }}
+                      </span>
+                    }
+                    @if (!contact.mayBeContacted) {
+                      <span
+                        class="rounded bg-accent-wash px-1.5 py-0.5 text-[11px] font-semibold text-accent"
+                        title="Ohne Einwilligung nicht anschreiben"
+                      >
+                        keine Einwilligung
+                      </span>
+                    }
+                  </span>
+                </td>
+                <td class="px-2 py-2 text-content-muted">{{ contact.city ?? '—' }}</td>
+                <td class="px-2 py-2 text-content-muted">{{ contact.email ?? '—' }}</td>
+                <td class="px-3 py-2 font-mono text-xs text-content-muted">
+                  {{ contact.bankDetails?.iban ?? '—' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="mt-3 text-sm text-content-muted">
+        {{ shown().length }} von {{ contacts().length }} Kontakten
+      </footer>
+    }
+  }
+</div>

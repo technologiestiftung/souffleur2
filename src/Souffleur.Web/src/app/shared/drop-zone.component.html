@@ -1,0 +1,63 @@
+<div
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave()"
+  (drop)="onDrop($event)"
+  class="rounded-md border-2 border-dashed p-1 transition-colors"
+  [class.border-brand]="over()"
+  [class.bg-brand-wash]="over()"
+  [class.border-border]="!over()"
+>
+  @if (file(); as chosen) {
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-3">
+      <span class="min-w-0 flex-1 truncate text-sm font-medium text-content">{{
+        chosen.name
+      }}</span>
+      <span class="shrink-0 text-xs text-content-muted tabular">{{ size(chosen) }}</span>
+
+      <button
+        type="button"
+        (click)="browse()"
+        class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-content-muted hover:text-brand"
+      >
+        andere wählen
+      </button>
+
+      <button
+        type="button"
+        (click)="clear()"
+        [attr.aria-label]="chosen.name + ' entfernen'"
+        class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-content-muted hover:text-critical"
+      >
+        entfernen
+      </button>
+    </div>
+  } @else {
+    <button
+      type="button"
+      (click)="browse()"
+      class="flex w-full cursor-pointer flex-col items-center gap-1 border-0 bg-transparent px-4 py-7 text-center"
+    >
+      <span class="text-sm font-medium text-content">{{ label() }}</span>
+      <span class="text-xs text-content-muted">
+        oder klicken, um {{ multiple() ? 'Dateien' : 'eine Datei' }} zu wählen
+      </span>
+      @if (hint()) {
+        <span class="text-xs text-content-faint">{{ hint() }}</span>
+      }
+    </button>
+  }
+
+  @if (problem(); as text) {
+    <p class="m-0 px-3 pb-2 text-xs text-critical">{{ text }}</p>
+  }
+
+  <input
+    #picker
+    type="file"
+    class="hidden"
+    [attr.accept]="accept() || null"
+    [multiple]="multiple()"
+    (change)="onPicked($event)"
+    [attr.aria-label]="inputLabel()"
+  />
+</div>

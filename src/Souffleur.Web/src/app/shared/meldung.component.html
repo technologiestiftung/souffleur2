@@ -1,0 +1,11 @@
+<div
+  class="rounded-md px-3 py-2 text-sm"
+  [class.bg-critical-wash]="art() === 'fehler'"
+  [class.text-critical]="art() === 'fehler'"
+  [class.bg-accent-wash]="art() === 'hinweis'"
+  [class.text-content]="art() === 'hinweis'"
+>
+  @for (zeile of zeilen(); track $index) {
+    <div>{{ zeile }}</div>
+  }
+</div>

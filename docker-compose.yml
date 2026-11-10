@@ -1,0 +1,32 @@
+services:
+  souffleur:
+    # Image und Instanz sind absichtlich getrennt: Mehrere Installationen auf
+    # derselben Maschine unterscheiden sich in ihren Daten, nicht im Programm.
+    # Sie teilen sich dasselbe Image und bauen es nur einmal.
+    image: '${SOUFFLEUR_IMAGE:-souffleur}:latest'
+    build: .
+    container_name: '${SOUFFLEUR_INSTANCE:-souffleur}'
+    restart: unless-stopped
+    # Im Image laeuft souffleur als 10001. Ein eingehaengtes Verzeichnis
+    # gehoert aber dem, der es angelegt hat -- SQLite kann dann die Datenbank
+    # nicht schreiben und der Container startet in einer Schleife neu.
+    # SOUFFLEUR_USER auf "id -u":"id -g" setzen, dann passt es zusammen.
+    user: '${SOUFFLEUR_USER:-10001:10001}'
+    # Standard: offen auf allen Adressen, damit das Haus im eigenen Netz
+    # drankommt. Hinter einem vorgelagerten Webserver stattdessen
+    # SOUFFLEUR_BIND=127.0.0.1:8081 setzen -- dann ist der Port nur noch
+    # lokal erreichbar und alles geht durch den Webserver.
+    ports:
+      - '${SOUFFLEUR_BIND:-0.0.0.0:8080}:8080'
+    volumes:
+      - ./data:/data
+    # Nur diese Werte gehen in den Container. Bewusst kein env_file: die .env
+    # kann auch Werte fuer einen vorgelagerten Webserver enthalten, die
+    # souffleur nichts angehen.
+    environment:
+      # Beim allerersten Start gesetzt lassen, danach entfernen.
+      Souffleur__FirstAdmin__Email: ${SOUFFLEUR_ADMIN_EMAIL:-}
+      Souffleur__FirstAdmin__Password: ${SOUFFLEUR_ADMIN_PASSWORD:-}
+      # Vorfuehrdaten beim ersten Start anlegen, aus data/haus.json.
+      # Eine Installation im Betrieb laesst das aus.
+      Souffleur__SeedDevelopmentData: ${SOUFFLEUR_SEED_DEMO:-false}

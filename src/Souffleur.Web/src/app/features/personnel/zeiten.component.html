@@ -1,0 +1,355 @@
+@if (loading()) {
+  <p class="text-sm text-content-muted">Einen Moment…</p>
+} @else if (!clock()?.contactId) {
+  <!-- Kein Fehler, sondern ein offener Schritt: Das Konto ist noch keinem
+       Menschen im Adressbuch zugeordnet. -->
+  <div class="max-w-3xl rounded-xl border border-border bg-surface-raised p-6">
+    <h2 class="m-0 text-base font-semibold">Dieses Konto gehört noch zu keinem Kontakt</h2>
+    <p class="mt-2 text-sm text-content-muted">
+      Gestempelt wird auf einen Menschen im Adressbuch, nicht auf ein Anmeldekonto — sonst wäre
+      dieselbe Person zweimal im Haus: einmal als Kontakt mit Dienst, einmal als Konto mit Zeit. Die
+      Verwaltung verbindet beides im Adressbuch unter „Benutzerkonto“.
+    </p>
+  </div>
+} @else {
+  <div class="flex flex-col gap-4">
+    <!-- Steht ein Fenster offen, trägt es die Meldung selbst -- sonst stünde
+         sie zweimal da. -->
+    @if (problems().length > 0 && editing() === null) {
+      <souffleur-meldung class="max-w-3xl" [texte]="problems()" />
+    }
+
+    <!-- Die Stempeluhr. -->
+    <div class="max-w-3xl rounded-xl border border-border bg-surface-raised p-4">
+      @if (clock()?.running; as running) {
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <div class="min-w-0 flex-1">
+            <p class="m-0 text-sm font-medium">
+              Läuft seit {{ running.startedAt | date: 'HH:mm' }} Uhr
+              @if (running.functionLabel) {
+                <span class="text-content-muted">· {{ running.functionLabel }}</span>
+              }
+            </p>
+            <p class="m-0 mt-0.5 font-mono text-2xl tabular">{{ asHours(runningMinutes()) }}</p>
+          </div>
+
+          <label class="flex items-center gap-1.5 text-xs text-content-muted">
+            <span>Pause (Min.)</span>
+            <input
+              type="number"
+              min="0"
+              step="5"
+              [ngModel]="breakMinutes()"
+              (ngModelChange)="breakMinutes.set($event)"
+              aria-label="Pause in Minuten"
+              class="w-20 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content tabular"
+            />
+          </label>
+
+          <button
+            type="button"
+            (click)="clockOut()"
+            [disabled]="busy()"
+            class="cursor-pointer rounded-lg border-0 bg-brand px-4 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+          >
+            Gehen stempeln
+          </button>
+
+          <button
+            type="button"
+            (click)="discard()"
+            [disabled]="busy()"
+            title="Versehentlich gestempelt — die laufende Zeit verwerfen"
+            class="cursor-pointer border-0 bg-transparent p-0 text-xs text-content-muted hover:text-critical disabled:opacity-60"
+          >
+            verwerfen
+          </button>
+        </div>
+      } @else {
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <p class="m-0 min-w-0 flex-1 text-sm text-content-muted">Keine laufende Zeit.</p>
+
+          @if (functions().length) {
+            <label class="flex items-center gap-1.5 text-xs text-content-muted">
+              <span>Funktion</span>
+              <select
+                [ngModel]="functionId()"
+                (ngModelChange)="functionId.set($event)"
+                aria-label="Funktion"
+                class="w-40 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+              >
+                <option value="">— keine —</option>
+                @for (entry of functions(); track entry.id) {
+                  <option [value]="entry.id">{{ entry.label }}</option>
+                }
+              </select>
+            </label>
+          }
+
+          <button
+            type="button"
+            (click)="clockIn()"
+            [disabled]="busy()"
+            class="cursor-pointer rounded-lg border-0 bg-brand px-4 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+          >
+            Kommen stempeln
+          </button>
+        </div>
+      }
+    </div>
+
+    <!-- Die Woche. -->
+    <div class="flex max-w-3xl flex-wrap items-center gap-2">
+      <button
+        type="button"
+        (click)="shiftWeek(-1)"
+        aria-label="Vorige Woche"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-sm text-content"
+      >
+        ‹
+      </button>
+      <span class="text-sm font-medium tabular">
+        {{ monday() | date: 'd. MMM' : undefined : 'de' }} –
+        {{ sunday() | date: 'd. MMM y' : undefined : 'de' }}
+      </span>
+      <button
+        type="button"
+        (click)="shiftWeek(1)"
+        aria-label="Nächste Woche"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-sm text-content"
+      >
+        ›
+      </button>
+      <button
+        type="button"
+        (click)="thisWeek()"
+        class="cursor-pointer border-0 bg-transparent p-0 text-xs text-content-muted hover:text-brand"
+      >
+        diese Woche
+      </button>
+
+      <span class="ml-auto text-sm tabular">
+        <span class="text-content-muted">Woche</span>
+        <strong class="ml-1.5 font-mono">{{ asHours(weekMinutes()) }}</strong>
+      </span>
+
+      <button
+        type="button"
+        (click)="startNew()"
+        class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+      >
+        Zeit nachtragen
+      </button>
+    </div>
+
+    @if (!days().length) {
+      <p class="max-w-prose text-sm text-content-muted">
+        In dieser Woche steht keine Zeit. Was nicht gestempelt wurde, lässt sich nachtragen — das
+        bleibt sichtbar als „Nachgetragen“.
+      </p>
+    } @else {
+      <ul class="flex max-w-3xl list-none flex-col gap-3 p-0">
+        @for (day of days(); track day.date) {
+          <li>
+            <div class="mb-1.5 flex items-baseline justify-between gap-3">
+              <h3 class="m-0 text-xs font-semibold uppercase tracking-wide text-content-muted">
+                {{ day.date | date: 'EEEE, d. MMMM' : undefined : 'de' }}
+              </h3>
+              <span class="font-mono text-sm tabular">{{ asHours(day.minutes) }}</span>
+            </div>
+
+            <ul class="flex list-none flex-col gap-1.5 p-0">
+              @for (entry of day.entries; track entry.id) {
+                <li class="rounded-lg border border-border bg-surface-raised px-3 py-2">
+                  <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span class="font-mono text-sm tabular">
+                      {{ entry.startedAt | date: 'HH:mm' }}–{{
+                        entry.endedAt ? (entry.endedAt | date: 'HH:mm') : '…'
+                      }}
+                    </span>
+
+                    @if (entry.workedMinutes !== null) {
+                      <span class="font-mono text-sm tabular">
+                        {{ asHours(entry.workedMinutes) }}
+                      </span>
+                    }
+
+                    @if (entry.breakMinutes > 0) {
+                      <span class="text-xs text-content-muted">
+                        {{ entry.breakMinutes }} Min. Pause
+                      </span>
+                    }
+
+                    @if (entry.functionLabel) {
+                      <span class="text-xs text-content-muted">{{ entry.functionLabel }}</span>
+                    }
+
+                    <span
+                      class="rounded px-1.5 py-0.5 text-[11px] font-medium"
+                      [class.bg-surface-sunken]="entry.source === 1"
+                      [class.text-content-muted]="entry.source === 1"
+                      [class.bg-accent-wash]="entry.source === 2"
+                      [class.text-accent]="entry.source === 2"
+                    >
+                      {{ entry.sourceLabel }}
+                    </span>
+
+                    @if (entry.endedAt) {
+                      <button
+                        type="button"
+                        (click)="startEdit(entry)"
+                        class="ml-auto cursor-pointer border-0 bg-transparent p-0 text-xs text-content-muted hover:text-brand"
+                      >
+                        richtigstellen
+                      </button>
+                    }
+                  </div>
+
+                  @if (entry.note) {
+                    <p class="m-0 mt-1 text-xs text-content-muted">{{ entry.note }}</p>
+                  }
+
+                  @if (entry.correctionReason) {
+                    <p class="m-0 mt-1 text-xs text-content-faint">
+                      Richtiggestellt: {{ entry.correctionReason }}
+                    </p>
+                  }
+
+                  @for (notice of entry.notices; track $index) {
+                    <p class="m-0 mt-1 text-xs text-accent">{{ notice }}</p>
+                  }
+                </li>
+              }
+            </ul>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
+  @if (editing() !== null) {
+    <souffleur-dialog
+      [heading]="editing() === 'neu' ? 'Zeit nachtragen' : 'Zeit richtigstellen'"
+      [note]="
+        editing() === 'neu'
+          ? 'Bleibt sichtbar als „Nachgetragen“'
+          : 'Ohne Grund geht es nicht — eine stillschweigend verschobene Arbeitszeit ist der Grund, warum Aufzeichnungen angezweifelt werden'
+      "
+      size="breit"
+      (closed)="cancel()"
+    >
+      @if (problems().length > 0) {
+        <souffleur-meldung [texte]="problems()" />
+      }
+
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Tag</span>
+          <input
+            type="date"
+            [ngModel]="draft().date"
+            (ngModelChange)="patch({ date: $event })"
+            aria-label="Tag"
+            class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          />
+        </label>
+
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">von</span>
+          <input
+            type="time"
+            [ngModel]="draft().from"
+            (ngModelChange)="patch({ from: $event })"
+            aria-label="von"
+            class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content tabular"
+          />
+        </label>
+
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">bis</span>
+          <input
+            type="time"
+            [ngModel]="draft().to"
+            (ngModelChange)="patch({ to: $event })"
+            aria-label="bis"
+            class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content tabular"
+          />
+        </label>
+
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Pause (Min.)</span>
+          <input
+            type="number"
+            min="0"
+            step="5"
+            [ngModel]="draft().breakMinutes"
+            (ngModelChange)="patch({ breakMinutes: $event })"
+            aria-label="Pause in Minuten"
+            class="w-24 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content tabular"
+          />
+        </label>
+
+        @if (functions().length) {
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Funktion</span>
+            <select
+              [ngModel]="draft().functionId"
+              (ngModelChange)="patch({ functionId: $event })"
+              aria-label="Funktion des Eintrags"
+              class="w-40 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            >
+              <option value="">— keine —</option>
+              @for (entry of functions(); track entry.id) {
+                <option [value]="entry.id">{{ entry.label }}</option>
+              }
+            </select>
+          </label>
+        }
+      </div>
+
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Notiz</span>
+        <input
+          type="text"
+          [ngModel]="draft().note"
+          (ngModelChange)="patch({ note: $event })"
+          placeholder="Wofür?"
+          aria-label="Notiz"
+          class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+
+      @if (editing() !== 'neu') {
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Grund der Korrektur</span>
+          <input
+            type="text"
+            [ngModel]="reason()"
+            (ngModelChange)="reason.set($event)"
+            placeholder="Gehen vergessen"
+            aria-label="Grund der Korrektur"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          />
+        </label>
+      }
+
+      <button
+        dialogActions
+        type="button"
+        (click)="cancel()"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+      >
+        Abbrechen
+      </button>
+      <button
+        dialogActions
+        type="button"
+        (click)="save()"
+        [disabled]="busy()"
+        class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
+      >
+        {{ busy() ? 'Wird gespeichert …' : 'Speichern' }}
+      </button>
+    </souffleur-dialog>
+  }
+}

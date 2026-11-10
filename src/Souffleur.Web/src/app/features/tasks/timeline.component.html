@@ -1,0 +1,222 @@
+<div class="flex h-full min-h-0 flex-col">
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-2">
+    <div class="flex items-center gap-1">
+      <button
+        type="button"
+        (click)="shift(-1)"
+        aria-label="Zurück"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-sm text-content"
+      >
+        ‹
+      </button>
+      <span class="min-w-44 text-center text-sm font-medium">{{ label() }}</span>
+      <button
+        type="button"
+        (click)="shift(1)"
+        aria-label="Vor"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-sm text-content"
+      >
+        ›
+      </button>
+      <button
+        type="button"
+        (click)="goToday()"
+        class="ml-1 cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+      >
+        Heute
+      </button>
+    </div>
+
+    <div class="flex items-center gap-1" role="group" aria-label="Spannweite">
+      <span class="text-xs text-content-muted">Monate</span>
+      @for (span of spans; track span) {
+        <button
+          type="button"
+          (click)="monthCount.set(span)"
+          [attr.aria-label]="span + ' Monate zeigen'"
+          [attr.aria-pressed]="monthCount() === span"
+          class="cursor-pointer rounded-md border px-2 py-1 text-xs tabular"
+          [class.bg-brand]="monthCount() === span"
+          [class.text-brand-contrast]="monthCount() === span"
+          [class.border-brand]="monthCount() === span"
+          [class.border-border]="monthCount() !== span"
+          [class.text-content]="monthCount() !== span"
+        >
+          {{ span }}
+        </button>
+      }
+    </div>
+
+    <div class="ml-auto flex items-center gap-3 text-xs text-content-muted tabular">
+      @if (loading()) {
+        <span>lädt …</span>
+      } @else {
+        <span>{{ entries().length }} Vorgänge</span>
+        @if (timeline()?.unscheduled; as offen) {
+          <span title="Weder Anfang noch Frist — nichts aufzutragen">
+            {{ offen }} ohne Zeitangabe
+          </span>
+        }
+      }
+    </div>
+  </div>
+
+  @if (breaches().length > 0) {
+    <div class="shrink-0 border-b border-border bg-accent-wash px-4 py-2 text-sm">
+      <div class="mb-0.5 font-medium text-accent">
+        Reihenfolge geht nicht auf
+        @if (breaches().length > 1) {
+          <span class="tabular">({{ breaches().length }})</span>
+        }
+      </div>
+      <ul class="m-0 list-none space-y-0.5 p-0 text-xs text-content">
+        @for (breach of breaches(); track $index) {
+          <li>{{ reason(breach) }}</li>
+        }
+      </ul>
+    </div>
+  }
+
+  <div class="flex min-h-0 flex-1">
+    <!-- Die Namen bleiben stehen, das Band daneben scrollt. -->
+    <div class="w-56 shrink-0 overflow-hidden border-r border-border">
+      <div class="h-7 border-b border-border bg-surface-raised"></div>
+      <div class="overflow-hidden">
+        @for (task of entries(); track task.id) {
+          <div
+            class="flex items-center gap-1.5 border-b border-border px-2 text-xs"
+            [style.height.px]="rowHeight"
+            [class.opacity-60]="!task.isOpen"
+          >
+            @if (task.parentId) {
+              <span class="text-content-faint">└</span>
+            }
+            <span
+              class="size-2 shrink-0 rounded-full"
+              [style.background]="task.categoryColor ?? 'var(--color-border-strong)'"
+            ></span>
+            <span class="truncate" [title]="task.title">{{ task.title }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="min-w-0 flex-1 overflow-auto">
+      <div class="flex h-full flex-col" [style.width.px]="width()">
+        <!-- Monatsköpfe -->
+        <div class="relative h-7 border-b border-border bg-surface-raised">
+          @for (month of months(); track month.left) {
+            <div
+              class="absolute top-0 flex h-7 items-center border-l border-border px-2 text-xs text-content-muted"
+              [style.left.px]="month.left"
+              [style.width.px]="month.width"
+            >
+              {{ month.label }}
+            </div>
+          }
+        </div>
+
+        <!-- Mindestens so hoch wie die Zeilen, sonst so hoch wie der Platz:
+             Sonst bricht das Raster mitten im Bild ab. -->
+        <div class="relative flex-1" [style.min-height.px]="height()">
+          <!-- Monatsgrenzen als senkrechte Linien -->
+          @for (month of months(); track month.left) {
+            <div
+              class="absolute top-0 bottom-0 w-px bg-border"
+              [style.left.px]="month.left"
+            ></div>
+          }
+
+          @if (todayLeft() !== null) {
+            <div
+              class="absolute top-0 bottom-0 z-10 w-px bg-critical"
+              [style.left.px]="todayLeft()"
+              title="heute"
+            ></div>
+          }
+
+          <!-- Die Pfeile liegen unter den Balken, damit sie nichts verdecken. -->
+          <svg
+            class="pointer-events-none absolute inset-0"
+            [attr.width]="width()"
+            [attr.height]="height()"
+            aria-hidden="true"
+          >
+            @for (arrow of arrows(); track $index) {
+              <polyline
+                [attr.points]="arrow.points"
+                fill="none"
+                stroke-width="1.5"
+                [attr.stroke]="arrow.broken
+                  ? 'var(--color-critical)'
+                  : 'var(--color-border-strong)'"
+              />
+              <polygon
+                [attr.points]="arrow.tip"
+                [attr.fill]="arrow.broken
+                  ? 'var(--color-critical)'
+                  : 'var(--color-border-strong)'"
+              />
+            }
+          </svg>
+
+          @for (task of entries(); track task.id; let index = $index) {
+            <div
+              class="absolute right-0 left-0 border-b border-border"
+              [style.top.px]="index * rowHeight"
+              [style.height.px]="rowHeight"
+            ></div>
+
+            @if (task.isMilestone) {
+              <!-- Ein Stichtag hat keine Dauer: eine Raute, kein Balken. -->
+              <div
+                class="absolute z-20 rotate-45"
+                [style.left.px]="left(task) - 1"
+                [style.top.px]="index * rowHeight + rowHeight / 2 - 5"
+                [style.width.px]="10"
+                [style.height.px]="10"
+                [style.background]="task.categoryColor ?? 'var(--color-border-strong)'"
+                [class.opacity-60]="!task.isOpen"
+                [title]="task.title + ' · ' + task.from"
+              ></div>
+            } @else {
+              <div
+                class="absolute z-20 flex items-center overflow-hidden rounded-sm px-1 text-[11px] whitespace-nowrap text-content"
+                [style.left.px]="left(task)"
+                [style.width.px]="barWidth(task)"
+                [style.top.px]="index * rowHeight + 5"
+                [style.height.px]="rowHeight - 10"
+                [style.background]="wash(task)"
+                [style.border-left]="'2px solid ' + accent(task)"
+                [class.opacity-60]="!task.isOpen"
+                [title]="task.title + ' · ' + task.from + ' bis ' + task.to"
+              >
+                @if (task.assigneeName) {
+                  {{ task.assigneeName }}
+                }
+              </div>
+            }
+
+            @if (isBroken(task)) {
+              <div
+                class="absolute z-30 text-xs text-critical"
+                [style.left.px]="left(task) - 14"
+                [style.top.px]="index * rowHeight + 6"
+                title="Reihenfolge geht nicht auf"
+              >
+                !
+              </div>
+            }
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (entries().length === 0 && !loading()) {
+    <p class="px-4 py-3 text-sm text-content-muted">
+      In diesem Ausschnitt liegt kein Vorgang. Auf dem Zeitstrahl erscheint, was einen Anfang
+      oder eine Frist hat.
+    </p>
+  }
+</div>

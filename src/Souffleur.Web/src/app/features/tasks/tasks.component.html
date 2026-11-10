@@ -1,0 +1,587 @@
+<div class="flex h-full min-h-0 flex-col">
+  <souffleur-metric-strip module="aufgaben" class="block shrink-0 border-b border-border p-4" />
+
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-4 py-2.5">
+    <div class="flex items-center gap-1" role="group" aria-label="Ansicht">
+      @for (
+        option of [
+          { key: 'liste', label: 'Liste' },
+          { key: 'zeitstrahl', label: 'Zeitstrahl' },
+        ];
+        track option.key
+      ) {
+        <button
+          type="button"
+          (click)="view.set($any(option.key))"
+          [attr.aria-pressed]="view() === option.key"
+          class="cursor-pointer rounded-md border px-2.5 py-1 text-xs"
+          [class.bg-brand]="view() === option.key"
+          [class.text-brand-contrast]="view() === option.key"
+          [class.border-brand]="view() === option.key"
+          [class.border-border]="view() !== option.key"
+          [class.text-content]="view() !== option.key"
+        >
+          {{ option.label }}
+        </button>
+      }
+    </div>
+
+    @if (view() === 'liste') {
+      <label class="flex items-center gap-1.5 text-xs text-content-muted">
+        <span>Kategorie</span>
+        <select
+          [ngModel]="category()"
+          (ngModelChange)="category.set($event); reload()"
+          class="rounded-md border border-border bg-surface px-2 py-1 text-xs text-content"
+        >
+          <option value="">alle</option>
+          @for (entry of categories(); track entry.id) {
+            <option [value]="entry.id">{{ entry.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="flex items-center gap-1.5 text-xs text-content-muted">
+        <span>Zuständig</span>
+        <select
+          [ngModel]="assignee()"
+          (ngModelChange)="assignee.set($event); reload()"
+          class="rounded-md border border-border bg-surface px-2 py-1 text-xs text-content"
+        >
+          <option value="">alle</option>
+          @for (person of people(); track person.id) {
+            <option [value]="person.id">{{ person.name }}</option>
+          }
+        </select>
+      </label>
+    }
+
+    <label class="flex items-center gap-2 text-xs text-content-muted">
+      <input
+        type="checkbox"
+        [ngModel]="includeClosed()"
+        (ngModelChange)="includeClosed.set($event); reload()"
+      />
+      <span>Erledigtes zeigen</span>
+    </label>
+
+    <label class="flex items-center gap-2 text-xs text-content-muted">
+      <input
+        type="checkbox"
+        [ngModel]="meineGruppen()"
+        (ngModelChange)="meineGruppen.set($event); reload()"
+      />
+      <span>Nur meine Gruppen</span>
+    </label>
+
+    @if (view() === 'liste') {
+      <div class="ml-auto flex items-center gap-3 text-xs text-content-muted tabular">
+        @if (loading()) {
+          <span>lädt …</span>
+        } @else {
+          <span>{{ summary().open }} offen</span>
+          @if (summary().overdue > 0) {
+            <span class="text-critical">{{ summary().overdue }} überfällig</span>
+          }
+        }
+      </div>
+    }
+  </div>
+
+  @if (view() === 'zeitstrahl') {
+    <div class="min-h-0 flex-1">
+      <souffleur-task-timeline [includeClosed]="includeClosed()" />
+    </div>
+  } @else {
+    <div class="min-h-0 flex-1 overflow-auto p-4">
+      <button
+        type="button"
+        (click)="startNew(null)"
+        class="mb-3 cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast"
+      >
+        Aufgabe anlegen
+      </button>
+
+      @if (problems().length > 0 && editing() === null) {
+        <souffleur-meldung class="mb-3 max-w-3xl" [texte]="problems()" />
+      }
+
+      <ul class="m-0 max-w-3xl list-none space-y-1 p-0">
+        @for (group of grouped(); track group.task.id) {
+          <li>
+            <ng-container
+              [ngTemplateOutlet]="row"
+              [ngTemplateOutletContext]="{ $implicit: group.task, child: false }"
+            />
+
+            @if (group.children.length > 0) {
+              <ul class="m-0 mt-1 ml-7 list-none space-y-1 border-l border-border pl-3 p-0">
+                @for (child of group.children; track child.id) {
+                  <li>
+                    <ng-container
+                      [ngTemplateOutlet]="row"
+                      [ngTemplateOutletContext]="{ $implicit: child, child: true }"
+                    />
+                  </li>
+                }
+              </ul>
+            }
+          </li>
+        }
+      </ul>
+
+      @if (grouped().length === 0 && !loading()) {
+        <p class="max-w-prose text-sm text-content-muted">
+          Nichts offen. Was hier steht, hat eine Frist oder eine Zuständigkeit — alles andere gehört
+          in eine Notiz.
+        </p>
+      }
+    </div>
+  }
+</div>
+
+<!-- Eine Zeile der Liste. -->
+<ng-template #row let-task let-child="child">
+  <div
+    class="flex items-center gap-2 rounded-md border border-border px-2 py-1.5"
+    [class.opacity-60]="!task.isOpen"
+  >
+    <input
+      type="checkbox"
+      [checked]="!task.isOpen"
+      (change)="toggleDone(task)"
+      [attr.aria-label]="task.isOpen ? task.title + ' erledigen' : task.title + ' wieder öffnen'"
+      class="shrink-0 cursor-pointer"
+    />
+
+    <span
+      class="size-2.5 shrink-0 rounded-full"
+      [style.background]="task.categoryColor ?? 'var(--color-border-strong)'"
+      [title]="task.categoryLabel ?? 'ohne Kategorie'"
+    ></span>
+
+    <button
+      type="button"
+      (click)="startEdit(task)"
+      class="min-w-0 flex-1 cursor-pointer truncate border-0 bg-transparent p-0 text-left text-sm text-content"
+      [class.line-through]="!task.isOpen"
+    >
+      {{ task.title }}
+    </button>
+
+    @if (task.productionTitle) {
+      <span
+        class="flex shrink-0 items-center gap-1 rounded bg-surface-sunken px-1.5 py-0.5 text-xs text-content-muted"
+        title="Produktion"
+      >
+        <souffleur-icon name="produktion" [size]="12" />
+        {{ task.productionTitle }}
+      </span>
+    }
+
+    @if (task.groupName) {
+      <span
+        class="flex shrink-0 items-center gap-1 rounded bg-surface-sunken px-1.5 py-0.5 text-xs text-content-muted"
+      >
+        <souffleur-icon name="gruppe" [size]="12" />
+        {{ task.groupName }}
+      </span>
+    }
+
+    @if (task.assigneeName) {
+      <span class="shrink-0 text-xs text-content-muted">{{ task.assigneeName }}</span>
+    }
+
+    @if (task.participants.length > 0) {
+      <span class="shrink-0 text-xs text-content-faint" [title]="'Beteiligt: ' + beteiligte(task)">
+        +{{ task.participants.length }}
+      </span>
+    }
+
+    @if (task.attachmentCount > 0) {
+      <span
+        class="flex shrink-0 items-center gap-0.5 text-xs text-content-faint"
+        [title]="task.attachmentCount + ' Dokumente oder Lesezeichen'"
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          aria-hidden="true"
+        >
+          <path
+            d="m21 12-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L16 7"
+          />
+        </svg>
+        {{ task.attachmentCount }}
+      </span>
+    }
+
+    @if (task.dueDate) {
+      <span
+        class="shrink-0 text-xs tabular"
+        [class.text-critical]="task.isOverdue"
+        [class.text-content-muted]="!task.isOverdue"
+        [title]="task.isOverdue ? 'Frist verstrichen' : 'Frist'"
+      >
+        {{ due(task) }}
+      </span>
+    }
+
+    <select
+      [ngModel]="task.state"
+      (ngModelChange)="setState(task, $event)"
+      [attr.aria-label]="'Stand von ' + task.title"
+      class="w-28 shrink-0 rounded-md border border-border bg-surface px-1.5 py-0.5 text-xs text-content"
+    >
+      @for (option of states(); track option.state) {
+        <option [ngValue]="option.state">{{ option.label }}</option>
+      }
+    </select>
+
+    @if (!child) {
+      <button
+        type="button"
+        (click)="startNew(task.id)"
+        title="Teilaufgabe hinzufügen"
+        aria-label="Teilaufgabe hinzufügen"
+        class="shrink-0 cursor-pointer border-0 bg-transparent px-1 text-sm text-content-faint hover:text-brand"
+      >
+        +
+      </button>
+    }
+
+    <button
+      type="button"
+      (click)="remove(task)"
+      [attr.aria-label]="task.title + ' löschen'"
+      class="shrink-0 cursor-pointer border-0 bg-transparent px-1 text-sm text-content-faint hover:text-critical"
+    >
+      ✕
+    </button>
+  </div>
+</ng-template>
+
+<!-- Anlegen und Ändern in einem. Oben, was die Aufgabe ausmacht: Titel,
+     Kategorie, wer sie trägt, wer mitarbeitet, wann. Darunter, abgesetzt,
+     die Verknüpfungen -- woran sie hängt und was man dazu braucht. -->
+@if (editing() !== null) {
+  <souffleur-dialog [heading]="heading()" size="breit" (closed)="cancel()">
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    <input
+      type="text"
+      [ngModel]="draft().title"
+      (ngModelChange)="patch({ title: $event })"
+      placeholder="Was ist zu tun?"
+      aria-label="Titel"
+      class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+    />
+
+    <div class="flex flex-wrap items-end gap-3">
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Kategorie</span>
+        <select
+          [ngModel]="draft().categoryId"
+          (ngModelChange)="patch({ categoryId: $event })"
+          class="w-40 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          <option [ngValue]="null">— keine —</option>
+          @for (entry of categories(); track entry.id) {
+            <option [ngValue]="entry.id">{{ entry.label }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Zuständig</span>
+        <select
+          [ngModel]="draft().assigneeId"
+          (ngModelChange)="patch({ assigneeId: $event })"
+          class="w-44 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          <option [ngValue]="null">— niemand —</option>
+          @for (person of people(); track person.id) {
+            <option [ngValue]="person.id">{{ person.name }}</option>
+          }
+        </select>
+      </label>
+
+      <!--
+        Gruppe und Person schliessen sich nicht aus: Die Technik bekommt die
+        Aufgabe, und wer sie dort übernimmt, trägt sich oben ein.
+      -->
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Gruppe</span>
+        <select
+          [ngModel]="draft().groupId"
+          (ngModelChange)="patch({ groupId: $event })"
+          class="w-44 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        >
+          <option [ngValue]="null">— keine —</option>
+          @for (gruppe of groups(); track gruppe.id) {
+            <option [ngValue]="gruppe.id">{{ gruppe.name }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Beginn</span>
+        <input
+          type="date"
+          [ngModel]="draft().startDate"
+          (ngModelChange)="patch({ startDate: $event })"
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">
+          Frist — steht dann im Kalender
+        </span>
+        <input
+          type="date"
+          [ngModel]="draft().dueDate"
+          (ngModelChange)="patch({ dueDate: $event })"
+          aria-label="Frist"
+          class="rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+    </div>
+
+    <!-- Beteiligt heißt: arbeitet mit, trägt die Aufgabe aber nicht. Die
+         Frist steht auch in ihrem Kalender, und sie bekommen die Glocke. -->
+    <souffleur-mehrfachauswahl
+      label="Beteiligt"
+      [optionen]="people()"
+      [gewaehlt]="draft().participantIds ?? []"
+      (gewaehltChange)="patch({ participantIds: $event })"
+    />
+
+    <input
+      type="text"
+      [ngModel]="draft().description"
+      (ngModelChange)="patch({ description: $event })"
+      placeholder="Notiz"
+      aria-label="Notiz"
+      class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+    />
+
+    <div
+      class="mt-2 border-t border-border pt-3"
+      role="group"
+      aria-labelledby="aufgabe-verknuepfungen"
+    >
+      <p
+        id="aufgabe-verknuepfungen"
+        class="m-0 mb-2 text-xs font-semibold uppercase tracking-wider text-content-muted"
+      >
+        Verknüpfungen
+      </p>
+
+      <div class="flex flex-wrap items-end gap-3">
+        <!-- Zu welchem Stück die Aufgabe gehört -- die Produktion liest sie darüber. -->
+        @if (productions().length > 0 || draft().productionId) {
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Produktion</span>
+            <select
+              [ngModel]="draft().productionId"
+              (ngModelChange)="patch({ productionId: $event })"
+              class="w-48 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            >
+              <option [ngValue]="null">— keine —</option>
+              @for (production of productions(); track production.id) {
+                <option [ngValue]="production.id">{{ production.title }}</option>
+              }
+              @if (abgespielteProduktion()) {
+                <option [ngValue]="draft().productionId">
+                  {{ draft().productionTitle ?? 'Abgespielte Produktion' }}
+                </option>
+              }
+            </select>
+          </label>
+        }
+
+        <!-- Woran sie in der Buchhaltung hängt. Eine Verknüpfung, keine Buchung. -->
+        @if (costCenters().length > 0 || draft().costCenterId) {
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Kostenstelle</span>
+            <select
+              [ngModel]="draft().costCenterId"
+              (ngModelChange)="patch({ costCenterId: $event })"
+              class="w-48 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            >
+              <option [ngValue]="null">— keine —</option>
+              @for (stelle of costCenters(); track stelle.id) {
+                <option [ngValue]="stelle.id">{{ stelle.number }} {{ stelle.name }}</option>
+              }
+            </select>
+          </label>
+        }
+
+        <!-- Kontakte, um die es geht: die Spielstätte, die Agentur. Keine Zuständigkeit. -->
+        <souffleur-mehrfachauswahl
+          label="Kontakte"
+          [optionen]="contacts()"
+          [gewaehlt]="draft().contactIds ?? []"
+          (gewaehltChange)="patch({ contactIds: $event })"
+        />
+      </div>
+
+      @if (documentsOn) {
+        <div class="mt-3">
+          <div class="flex items-baseline justify-between gap-2">
+            <span class="text-xs font-medium text-content-muted">Dokumente</span>
+          </div>
+
+          @if (
+            linkedDocuments().length > 0 ||
+            vorgemerkteDokumente().length > 0 ||
+            pendingFiles().length > 0
+          ) {
+            <ul class="m-0 mt-1 list-none divide-y divide-border p-0" aria-label="Dokumente">
+              @for (doc of linkedDocuments(); track doc.id) {
+                <li class="flex items-center gap-2 py-1 text-sm">
+                  <souffleur-icon
+                    name="dokumente"
+                    [size]="12"
+                    class="shrink-0 text-content-faint"
+                  />
+                  <a
+                    [href]="fileUrl(doc)"
+                    target="_blank"
+                    rel="noopener"
+                    class="min-w-0 flex-1 truncate text-brand underline-offset-2 hover:underline"
+                  >
+                    {{ doc.name }}
+                  </a>
+                  <button
+                    type="button"
+                    (click)="detachDocument(doc)"
+                    [attr.aria-label]="doc.name + ' lösen'"
+                    title="Von der Aufgabe lösen — das Dokument bleibt in der Ablage"
+                    class="shrink-0 cursor-pointer border-0 bg-transparent px-1 text-sm text-content-faint hover:text-critical"
+                  >
+                    ✕
+                  </button>
+                </li>
+              }
+              @for (doc of vorgemerkteDokumente(); track doc.id) {
+                <li class="flex items-center gap-2 py-1 text-sm">
+                  <souffleur-icon
+                    name="dokumente"
+                    [size]="12"
+                    class="shrink-0 text-content-faint"
+                  />
+                  <span class="min-w-0 flex-1 truncate">{{ doc.name }}</span>
+                  <span class="shrink-0 text-[11px] text-content-faint"
+                    >wird beim Speichern angeheftet</span
+                  >
+                  <button
+                    type="button"
+                    (click)="unpendDocument(doc.id)"
+                    [attr.aria-label]="doc.name + ' nicht anheften'"
+                    class="shrink-0 cursor-pointer border-0 bg-transparent px-1 text-sm text-content-faint hover:text-critical"
+                  >
+                    ✕
+                  </button>
+                </li>
+              }
+              @for (file of pendingFiles(); track $index) {
+                <li class="flex items-center gap-2 py-1 text-sm">
+                  <souffleur-icon
+                    name="dokumente"
+                    [size]="12"
+                    class="shrink-0 text-content-faint"
+                  />
+                  <span class="min-w-0 flex-1 truncate">{{ file.name }}</span>
+                  <span class="shrink-0 text-[11px] text-content-faint"
+                    >wird beim Speichern hochgeladen</span
+                  >
+                  <button
+                    type="button"
+                    (click)="unpendFile($index)"
+                    [attr.aria-label]="file.name + ' nicht hochladen'"
+                    class="shrink-0 cursor-pointer border-0 bg-transparent px-1 text-sm text-content-faint hover:text-critical"
+                  >
+                    ✕
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+
+          <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <label class="sr-only" for="aufgabe-dokument">Vorhandenes Dokument</label>
+            <select
+              id="aufgabe-dokument"
+              [ngModel]="chosenDocument()"
+              (ngModelChange)="chosenDocument.set($event)"
+              class="min-w-0 flex-1 basis-56 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+            >
+              <option value="">— vorhandenes Dokument —</option>
+              @for (doc of offeneDokumente(); track doc.id) {
+                <option [value]="doc.id">{{ doc.name }}</option>
+              }
+            </select>
+            <button
+              type="button"
+              (click)="attachDocument()"
+              [disabled]="!chosenDocument()"
+              class="cursor-pointer rounded-md border border-border bg-transparent px-2.5 py-1 text-sm text-content disabled:opacity-50"
+            >
+              Anheften
+            </button>
+            <button
+              type="button"
+              (click)="plusFile()"
+              [disabled]="busy()"
+              class="cursor-pointer rounded-md border border-border bg-transparent px-2.5 py-1 text-sm text-content disabled:opacity-50"
+            >
+              Datei hochladen …
+            </button>
+            <input
+              #datei
+              type="file"
+              multiple
+              class="hidden"
+              aria-label="Datei wählen"
+              (change)="fileChosen($event)"
+            />
+          </div>
+        </div>
+      }
+
+      <souffleur-lesezeichen
+        class="mt-3"
+        target="Task"
+        [targetId]="editingId()"
+        [ausstehend]="pendingBookmarks()"
+        (ausstehendChange)="pendingBookmarks.set($event)"
+      />
+    </div>
+
+    <button
+      dialogActions
+      type="button"
+      (click)="cancel()"
+      class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+    >
+      Abbrechen
+    </button>
+    <button
+      dialogActions
+      type="button"
+      (click)="save()"
+      [disabled]="busy()"
+      class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
+    >
+      {{ busy() ? 'Wird gespeichert …' : 'Speichern' }}
+    </button>
+  </souffleur-dialog>
+}

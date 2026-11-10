@@ -1,0 +1,222 @@
+<div class="flex h-full flex-col p-6">
+  <header class="mb-4">
+    <h1 class="font-display text-2xl font-bold tracking-tight">Bedarf je Terminart</h1>
+    <p class="mt-1 max-w-prose text-sm text-content-muted">
+      Wer bei einer Vorstellung gebraucht wird, steht nicht an jedem einzelnen Abend neu, sondern an
+      der Terminart. Der Dienstplan rechnet damit gegen die Einteilung — und zeigt, wo noch jemand
+      fehlt.
+    </p>
+  </header>
+
+  @if (loading()) {
+    <p class="text-sm text-content-muted">Einen Moment…</p>
+  } @else {
+    @if (problems().length > 0 && editing() === null) {
+      <souffleur-meldung class="mb-3 max-w-3xl" [texte]="problems()" />
+    }
+
+    @if (without().length) {
+      <div class="mb-4 flex flex-wrap items-center gap-2">
+        <label class="flex items-center gap-1.5 text-xs text-content-muted">
+          <span>Bedarf anlegen für</span>
+          <select
+            #neu
+            aria-label="Terminart"
+            class="w-56 rounded-lg border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          >
+            <option value="">— Terminart wählen —</option>
+            @for (category of without(); track category.id) {
+              <option [value]="category.id">{{ category.label }}</option>
+            }
+          </select>
+        </label>
+
+        <button
+          type="button"
+          (click)="startNew(neu.value)"
+          class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover"
+        >
+          Bedarf anlegen
+        </button>
+      </div>
+    }
+
+    @if (!templates().length) {
+      <div class="max-w-3xl rounded-xl border border-border bg-surface-raised p-6">
+        <h2 class="m-0 text-base font-semibold">Noch kein Bedarf hinterlegt</h2>
+        <p class="mt-2 max-w-prose text-sm text-content-muted">
+          Ohne Bedarf zeigt der Dienstplan nur, wer eingeteilt ist — nicht, wer fehlt. Eine
+          Vorstellung, an der niemand eingeteilt ist, bliebe unsichtbar.
+        </p>
+      </div>
+    } @else {
+      <ul class="flex max-w-3xl list-none flex-col gap-3 p-0">
+        @for (template of templates(); track template.categoryId) {
+          <li class="rounded-xl border border-border bg-surface-raised px-4 py-3">
+            <div class="flex items-baseline gap-3">
+              <h2 class="m-0 min-w-0 flex-1 text-sm font-semibold">
+                {{ template.categoryLabel }}
+              </h2>
+
+              <button
+                type="button"
+                (click)="startEdit(template)"
+                class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-content-muted hover:text-brand"
+              >
+                ändern
+              </button>
+
+              <button
+                type="button"
+                (click)="remove(template)"
+                [disabled]="busy()"
+                [attr.aria-label]="'Bedarf für ' + template.categoryLabel + ' entfernen'"
+                class="shrink-0 cursor-pointer border-0 bg-transparent p-0 text-xs text-content-muted hover:text-critical disabled:opacity-60"
+              >
+                entfernen
+              </button>
+            </div>
+
+            <ul class="mt-2 flex list-none flex-wrap gap-2 p-0">
+              @for (requirement of template.requirements; track requirement.functionId) {
+                <li class="rounded bg-surface-sunken px-1.5 py-0.5 text-[11px] text-content-muted">
+                  {{ requirement.count }} × {{ requirement.function }}
+                  @if (requirement.groupName) {
+                    <span class="text-content-faint">· {{ requirement.groupName }}</span>
+                  }
+                </li>
+              }
+            </ul>
+
+            @if (template.note) {
+              <p class="m-0 mt-2 text-xs text-content-muted">{{ template.note }}</p>
+            }
+          </li>
+        }
+      </ul>
+    }
+  }
+</div>
+
+@if (editing() !== null) {
+  <souffleur-dialog [heading]="heading()" size="breit" (closed)="cancel()">
+    @if (problems().length > 0) {
+      <souffleur-meldung [texte]="problems()" />
+    }
+
+    <ul class="m-0 flex list-none flex-col gap-2 p-0">
+      @for (line of lines(); track $index) {
+        <li class="flex flex-wrap items-end gap-3">
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Funktion</span>
+            <select
+              [ngModel]="line.functionId"
+              (ngModelChange)="patchLine($index, { functionId: $event })"
+              aria-label="Funktion"
+              class="w-56 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            >
+              <option value="">— wählen —</option>
+              @for (entry of functions(); track entry.id) {
+                <option [value]="entry.id">{{ entry.label }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Anzahl</span>
+            <input
+              type="number"
+              min="1"
+              max="50"
+              [ngModel]="line.count"
+              (ngModelChange)="patchLine($index, { count: $event })"
+              aria-label="Anzahl"
+              class="w-20 rounded-md border border-border bg-surface px-2 py-1.5 text-right text-sm text-content tabular"
+            />
+          </label>
+
+          <label class="block">
+            <span class="mb-1 block text-xs font-medium text-content-muted">Vorschlag aus</span>
+            <select
+              [ngModel]="line.groupId"
+              (ngModelChange)="patchLine($index, { groupId: $event })"
+              aria-label="Vorschlag aus Gruppe"
+              class="w-44 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+            >
+              <option value="">— allen —</option>
+              @for (gruppe of groups(); track gruppe.id) {
+                <option [value]="gruppe.id">{{ gruppe.name }}</option>
+              }
+            </select>
+          </label>
+
+          @if (lines().length > 1) {
+            <button
+              type="button"
+              (click)="removeLine($index)"
+              aria-label="Zeile entfernen"
+              class="cursor-pointer border-0 bg-transparent px-1 pb-2 text-sm text-content-faint hover:text-critical"
+            >
+              ✕
+            </button>
+          }
+        </li>
+      }
+    </ul>
+
+    <button
+      type="button"
+      (click)="addLine()"
+      class="cursor-pointer rounded-md border border-border bg-transparent px-2.5 py-1 text-xs text-content"
+    >
+      Funktion hinzufügen
+    </button>
+
+    <!-- Was „Vorschlag aus" tut, sieht man dem Feld nicht an -- und ohne
+         Gruppen steht dort nur „allen", ohne dass klar wäre, warum. -->
+    <p class="m-0 text-xs text-content-muted">
+      @if (groups().length) {
+        „Vorschlag aus" engt ein, wen der Dienstplan für diese Funktion vorschlägt: nur Leute aus
+        der gewählten Gruppe statt aus allen Kontakten.
+      } @else {
+        „Vorschlag aus" engt ein, wen der Dienstplan vorschlägt — es gibt aber noch keine Gruppen.
+        @if (darfGruppen()) {
+          Anlegen unter
+          <a routerLink="/einstellungen/zugaenge" class="text-brand">Zugänge → Gruppen</a>.
+        } @else {
+          Gruppen legt an, wer die Zugänge verwaltet.
+        }
+      }
+    </p>
+
+    <label class="block">
+      <span class="mb-1 block text-xs font-medium text-content-muted">Notiz</span>
+      <input
+        type="text"
+        [ngModel]="note()"
+        (ngModelChange)="note.set($event)"
+        placeholder="Warum der Bedarf so aussieht"
+        aria-label="Notiz"
+        class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+      />
+    </label>
+
+    <button
+      dialogActions
+      type="button"
+      (click)="cancel()"
+      class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+    >
+      Abbrechen
+    </button>
+    <button
+      dialogActions
+      type="button"
+      (click)="save()"
+      [disabled]="busy()"
+      class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
+    >
+      {{ busy() ? 'Wird gespeichert …' : 'Speichern' }}
+    </button>
+  </souffleur-dialog>
+}

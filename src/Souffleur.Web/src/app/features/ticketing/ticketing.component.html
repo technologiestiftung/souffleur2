@@ -1,0 +1,267 @@
+<div class="flex h-full flex-col p-6">
+  <header class="mb-4">
+    <h1 class="font-display text-2xl font-bold tracking-tight">Ticketing</h1>
+    <p class="mt-1 text-sm text-content-muted">
+      @if (settings()?.isConfigured) {
+        Verkäufe und Auslastung aus {{ settings()?.baseUrl }} · Veranstalter
+        <span class="font-mono">{{ settings()?.organizer }}</span>
+      } @else {
+        Verkäufe und Auslastung aus dem Vorverkauf des Hauses.
+      }
+    </p>
+  </header>
+
+  @if (!blocked() && settings()?.isConfigured) {
+    <souffleur-metric-strip module="ticketing" class="mb-5 block shrink-0" />
+  }
+
+  @if (loading()) {
+    <p class="text-sm text-content-muted">Einen Moment…</p>
+  } @else if (blocked()) {
+    <div class="rounded-xl border border-border bg-surface-raised p-6">
+      <h2 class="text-base font-semibold">Ticketing ist in diesem Haus nicht eingeschaltet</h2>
+      <p class="mt-2 text-sm text-content-muted">
+        Module werden unter Einstellungen an- und abgeschaltet. Häuser ohne eigenen Vorverkauf
+        lassen es aus.
+      </p>
+    </div>
+  } @else {
+    @if (problems().length) {
+      <souffleur-meldung class="mb-3" [texte]="problems()" />
+    }
+
+    @if (settings(); as current) {
+      @if (current.lastProblem) {
+        <div class="mb-3 rounded-md bg-accent-wash px-3 py-2 text-sm text-accent">
+          Die Verbindung stand zuletzt nicht: {{ current.lastProblem }}
+        </div>
+      }
+    }
+
+    @if (setup()) {
+      <div class="mb-4 rounded-xl border border-border bg-surface-raised p-4">
+        <p class="m-0 mb-1 text-sm font-medium">Vorverkauf einrichten</p>
+        <p class="m-0 mb-3 text-xs text-content-muted">
+          souffleur liest nur. Ein Token mit Leserechten genügt — es wird hier hinterlegt und nie
+          wieder angezeigt.
+        </p>
+
+        <div class="mb-3 flex items-center gap-1" role="group" aria-label="Vorverkaufssystem">
+          @for (
+            option of [
+              { value: providers.None, label: 'Kein Vorverkauf' },
+              { value: providers.Pretix, label: 'pretix' },
+            ];
+            track option.value
+          ) {
+            <button
+              type="button"
+              (click)="provider.set(option.value)"
+              [attr.aria-pressed]="provider() === option.value"
+              class="cursor-pointer rounded-md border px-2.5 py-1 text-xs"
+              [class.bg-brand]="provider() === option.value"
+              [class.text-brand-contrast]="provider() === option.value"
+              [class.border-brand]="provider() === option.value"
+              [class.border-border]="provider() !== option.value"
+              [class.text-content]="provider() !== option.value"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+
+        @if (provider() === providers.Pretix) {
+          <div class="mb-3 flex flex-wrap items-end gap-3">
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-content-muted"
+                >Adresse der Instanz</span
+              >
+              <input
+                type="url"
+                placeholder="https://pretix.eu"
+                [ngModel]="baseUrl()"
+                (ngModelChange)="baseUrl.set($event)"
+                aria-label="Adresse der Instanz"
+                class="w-80 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+              />
+            </label>
+
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-content-muted">Veranstalter</span>
+              <input
+                type="text"
+                [ngModel]="organizer()"
+                (ngModelChange)="organizer.set($event)"
+                aria-label="Veranstalter"
+                class="w-48 rounded-md border border-border bg-surface px-2 py-1.5 font-mono text-sm text-content"
+              />
+            </label>
+
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-content-muted">
+                Token
+                @if (settings()?.hasToken) {
+                  <span class="font-normal">(hinterlegt — leer lassen, um es zu behalten)</span>
+                }
+              </span>
+              <input
+                type="password"
+                autocomplete="off"
+                [ngModel]="token()"
+                (ngModelChange)="token.set($event)"
+                aria-label="Token"
+                class="w-72 rounded-md border border-border bg-surface px-2 py-1.5 font-mono text-sm text-content"
+              />
+            </label>
+
+            <label class="block">
+              <span class="mb-1 block text-xs font-medium text-content-muted"
+                >Zwischenspeicher, Sekunden</span
+              >
+              <input
+                type="number"
+                min="0"
+                max="3600"
+                [ngModel]="cacheSeconds()"
+                (ngModelChange)="cacheSeconds.set($event)"
+                aria-label="Zwischenspeicher in Sekunden"
+                class="w-28 rounded-md border border-border bg-surface px-2 py-1.5 text-right text-sm text-content tabular"
+              />
+            </label>
+          </div>
+        }
+
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            (click)="save()"
+            [disabled]="busy()"
+            class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-2 text-sm font-semibold text-brand-contrast hover:bg-brand-hover disabled:opacity-60"
+          >
+            Speichern und prüfen
+          </button>
+
+          <button
+            type="button"
+            (click)="cancelSetup()"
+            class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-2 text-sm text-content"
+          >
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    }
+
+    @if (settings(); as current) {
+      @if (!current.isConfigured && !setup()) {
+        <div class="rounded-xl border border-border bg-surface-raised p-6">
+          <h2 class="text-base font-semibold">Noch kein Vorverkauf angebunden</h2>
+          <p class="mt-2 text-sm text-content-muted">
+            Mit einer pretix-Instanz und einem Lesetoken erscheinen hier Vorstellungen, verkaufte
+            Karten und Auslastung. Ohne Anbindung bleibt das Modul leer — das ist für Häuser ohne
+            eigenen Kartenverkauf der Normalfall.
+          </p>
+        </div>
+      }
+    }
+
+    @if (performances().length) {
+      <div class="min-h-0 flex-1 overflow-auto rounded-xl border border-border bg-surface-raised">
+        <table class="w-full border-collapse text-sm">
+          <thead class="sticky top-0 bg-surface-sunken">
+            <tr class="border-b border-border text-left">
+              <th
+                scope="col"
+                class="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Vorstellung
+              </th>
+              <th
+                scope="col"
+                class="w-32 px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Termin
+              </th>
+              <th
+                scope="col"
+                class="w-24 px-2 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Karten
+              </th>
+              <th
+                scope="col"
+                class="w-24 px-2 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Plätze
+              </th>
+              <th
+                scope="col"
+                class="w-40 px-2 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Auslastung
+              </th>
+              <th
+                scope="col"
+                class="w-28 px-3 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-content-muted"
+              >
+                Erlös
+              </th>
+            </tr>
+          </thead>
+          <tbody class="tabular">
+            @for (performance of performances(); track performance.key) {
+              <tr class="border-b border-border/60">
+                <td class="px-3 py-2">{{ performance.name }}</td>
+                <td class="px-2 py-2 text-content-muted">
+                  {{ performance.date | date: 'dd.MM.yy, HH:mm' }}
+                </td>
+                <td class="px-2 py-2 text-right font-mono">{{ performance.sold }}</td>
+                <td class="px-2 py-2 text-right font-mono" [title]="sourceLabel(performance)">
+                  @if (performance.capacity !== null) {
+                    {{ performance.capacity }}
+                  } @else {
+                    <span class="text-content-faint">—</span>
+                  }
+                </td>
+                <td class="px-2 py-2">
+                  @if (performance.utilization !== null) {
+                    <span class="flex items-center gap-2">
+                      <span class="h-2 min-w-20 flex-1 rounded bg-surface-sunken">
+                        <span
+                          class="block h-full rounded"
+                          [style.width.%]="performance.utilization"
+                          style="background: var(--color-chart-1)"
+                        ></span>
+                      </span>
+                      <span class="shrink-0 font-mono text-xs">
+                        {{ performance.utilization | number: '1.0-0' : 'de' }} %
+                      </span>
+                    </span>
+                  } @else {
+                    <span class="text-xs text-content-faint" [title]="sourceLabel(performance)">
+                      unbestimmt
+                    </span>
+                  }
+                </td>
+                <td class="px-3 py-2 text-right font-mono">
+                  {{
+                    performance.revenue | currency: performance.currency : 'symbol' : '1.0-0' : 'de'
+                  }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <footer class="mt-3 flex justify-between text-sm text-content-muted">
+        <span>{{ upcoming().length }} kommende · {{ past().length }} gespielte Vorstellungen</span>
+        @if (settings()?.lastCheckedAt; as checked) {
+          <span class="text-xs"
+            >Verbindung zuletzt geprüft: {{ checked | date: 'dd.MM.yy, HH:mm' }}</span
+          >
+        }
+      </footer>
+    }
+  }
+</div>

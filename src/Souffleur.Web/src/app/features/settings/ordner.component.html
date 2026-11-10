@@ -1,0 +1,321 @@
+<div class="flex h-full flex-col p-6">
+  <header class="mb-4">
+    <h1 class="font-display text-2xl font-bold tracking-tight">Ordner der Ablage</h1>
+    <p class="mt-1 max-w-prose text-sm text-content-muted">
+      Die Ordner auf der Synology, mit denen souffleur arbeitet. Was jemand in der File Station
+      hineinlegt, erscheint hier unter Dokumente; was in souffleur hochgeladen wird, landet dort mit
+      lesbarem Namen. Jedes Modul legt in seinem Standardordner ab — ein Dokument an einer
+      Produktion in einen Unterordner mit ihrem Titel.
+    </p>
+  </header>
+
+  @if (loading()) {
+    <p class="text-sm text-content-muted">Einen Moment…</p>
+  } @else {
+    <div class="flex max-w-4xl flex-col gap-4">
+      @if (hinweis()) {
+        <souffleur-meldung art="hinweis" [texte]="hinweis()" />
+      }
+      @if (problems().length > 0 && bearbeitet() === null) {
+        <souffleur-meldung [texte]="problems()" />
+      }
+
+      @if (status() && !status()!.available) {
+        <div class="rounded-xl border border-accent bg-surface-raised p-4 text-sm">
+          <p class="m-0 font-medium">Es ist noch kein Ordner der Synology eingehängt.</p>
+          <p class="m-0 mt-1 text-content-muted">
+            Die Freigaben kommen im Container Manager als Volume unter
+            <code class="font-mono">{{ status()!.root }}</code> in den Container — etwa
+            <code class="font-mono">/volume1/Verwaltung → {{ status()!.root }}/Verwaltung</code>.
+            Danach lassen sich hier Ordner darin auswählen. Wie das geht, steht in
+            <code class="font-mono">deploy/haus/README.md</code>.
+          </p>
+        </div>
+      } @else {
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            (click)="neu()"
+            class="cursor-pointer rounded-lg border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast"
+          >
+            Ordner hinzufügen
+          </button>
+          @if (finanzOrdner() && darfFinanzen()) {
+            <button
+              type="button"
+              (click)="belegeKopieren()"
+              [disabled]="busy()"
+              title="Für jeden Beleg, der noch keine hat, eine lesbare Kopie in den Finanzordner"
+              class="cursor-pointer rounded-lg border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+            >
+              Belege in den Finanzordner kopieren
+            </button>
+          }
+        </div>
+      }
+
+      @if (ordner().length === 0) {
+        <p class="m-0 text-sm text-content-muted">
+          Noch kein Ordner eingetragen. Bis dahin liegen Dokumente in souffleurs eigener Ablage.
+        </p>
+      } @else {
+        <div class="overflow-x-auto rounded-xl border border-border">
+          <table class="w-full border-collapse text-sm" aria-label="Ordner">
+            <thead class="bg-surface-sunken text-left text-xs text-content-muted">
+              <tr>
+                <th class="px-3 py-2 font-medium">Ordner</th>
+                <th class="px-3 py-2 font-medium">Modul</th>
+                <th class="px-3 py-2 text-right font-medium">Dateien</th>
+                <th class="px-3 py-2 font-medium">Zuletzt eingelesen</th>
+                <th class="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (o of ordner(); track o.id) {
+                <tr class="border-t border-border align-top">
+                  <td class="px-3 py-2">
+                    <button
+                      type="button"
+                      (click)="aendern(o)"
+                      class="cursor-pointer border-0 bg-transparent p-0 text-left font-medium text-content hover:text-brand"
+                    >
+                      {{ o.name }}
+                    </button>
+                    <div class="font-mono text-[11px] text-content-faint">{{ o.path }}</div>
+                    @if (o.isRestricted) {
+                      <div class="text-[11px] text-content-muted">
+                        nur für {{ o.groups.length ? '' : 'die Verwaltung' }}
+                        @for (g of o.groups; track g.id; let last = $last) {
+                          {{ g.name }}
+                          @if (!last) {
+                            ,
+                          }
+                        }
+                      </div>
+                    }
+                  </td>
+                  <td class="px-3 py-2">
+                    {{ o.moduleLabel }}
+                    @if (o.isDefault) {
+                      <span class="ml-1 rounded bg-brand-wash px-1.5 py-0.5 text-[11px] text-brand"
+                        >Standard</span
+                      >
+                    }
+                  </td>
+                  <td class="px-3 py-2 text-right font-mono tabular">
+                    {{ o.files }}
+                    @if (o.missing) {
+                      <div class="text-[11px] text-accent">{{ o.missing }} fehlen</div>
+                    }
+                  </td>
+                  <td class="px-3 py-2 text-xs text-content-muted">
+                    @if (o.lastScanAt) {
+                      {{ o.lastScanAt | date: 'd.M. HH:mm' }} · {{ o.lastScanResult }}
+                    } @else {
+                      noch nie
+                    }
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <button
+                      type="button"
+                      (click)="einlesen(o)"
+                      [disabled]="busy()"
+                      class="cursor-pointer border-0 bg-transparent p-0 text-xs text-content-muted hover:text-brand"
+                    >
+                      jetzt einlesen
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="m-0 max-w-prose text-xs text-content-faint">
+          souffleur liest alle fünf Minuten nach. Umbenennen und Verschieben in der File Station
+          behält Schlagworte und Verknüpfungen — souffleur erkennt die Datei an ihrem Inhalt. Was in
+          souffleur gelöscht wird, kommt in den Papierkorb der Freigabe. Wer was sieht, regeln die
+          Rechte der Synology für die File Station und souffleur für sich.
+        </p>
+      }
+    </div>
+  }
+
+  @if (bearbeitet() !== null) {
+    <souffleur-dialog
+      [heading]="bearbeitet() === 'neu' ? 'Ordner hinzufügen' : 'Ordner ändern'"
+      note="Ein Ordner auf der Synology, und welches Modul dort ablegt"
+      size="weit"
+      (closed)="schliessen()"
+    >
+      @if (problems().length > 0) {
+        <souffleur-meldung [texte]="problems()" />
+      }
+
+      <!-- Der Auswähler: oben der Weg, darunter die Ordner der Stufe. -->
+      <div class="rounded-lg border border-border">
+        <nav
+          aria-label="Ort in der Ablage"
+          class="flex flex-wrap items-center gap-1 border-b border-border px-3 py-2 text-sm"
+        >
+          <button
+            type="button"
+            (click)="gehe(null)"
+            class="cursor-pointer border-0 bg-transparent p-0 text-brand"
+          >
+            Ablage
+          </button>
+          @for (s of stufen(); track s.path) {
+            <span class="text-content-faint">/</span>
+            <button
+              type="button"
+              (click)="gehe(s.path)"
+              class="cursor-pointer border-0 bg-transparent p-0 text-brand"
+            >
+              {{ s.name }}
+            </button>
+          }
+        </nav>
+        <ul class="m-0 max-h-64 list-none overflow-auto p-0" aria-label="Ordner auf der Synology">
+          @for (e of eintraege(); track e.path) {
+            <li
+              class="flex items-center gap-2 border-b border-border px-3 py-1.5 text-sm last:border-b-0"
+              [class.bg-brand-wash]="bogen().path === e.path"
+            >
+              <button
+                type="button"
+                (click)="gehe(e.path)"
+                [disabled]="!e.hasChildren"
+                class="cursor-pointer border-0 bg-transparent p-0 text-left text-content disabled:cursor-default"
+                [attr.aria-label]="'Öffnen: ' + e.name"
+              >
+                📁 {{ e.name }}{{ e.hasChildren ? ' ›' : '' }}
+              </button>
+              <button
+                type="button"
+                (click)="waehle(e)"
+                class="ml-auto cursor-pointer rounded-md border border-border bg-transparent px-2 py-0.5 text-xs text-content"
+              >
+                {{ bogen().path === e.path ? 'gewählt' : 'diesen nehmen' }}
+              </button>
+            </li>
+          } @empty {
+            <li class="px-3 py-2 text-sm text-content-muted">Hier liegen keine Ordner.</li>
+          }
+        </ul>
+        <div class="flex items-center gap-2 border-t border-border px-3 py-2">
+          <input
+            type="text"
+            [ngModel]="neuerOrdner()"
+            (ngModelChange)="neuerOrdner.set($event)"
+            (keyup.enter)="anlegen()"
+            placeholder="Neuer Unterordner"
+            aria-label="Name des neuen Unterordners"
+            class="flex-1 rounded-md border border-border bg-surface px-2 py-1 text-sm text-content"
+          />
+          <button
+            type="button"
+            (click)="anlegen()"
+            class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+          >
+            anlegen
+          </button>
+        </div>
+      </div>
+
+      <p class="m-0 font-mono text-xs text-content-muted">
+        {{ bogen().path ? 'Gewählt: ' + bogen().path : 'Noch kein Ordner gewählt.' }}
+      </p>
+
+      <div class="flex flex-wrap items-end gap-3">
+        <label class="block grow">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Name in souffleur</span>
+          <input
+            type="text"
+            [ngModel]="bogen().name"
+            (ngModelChange)="patch({ name: $event })"
+            aria-label="Name in souffleur"
+            class="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          />
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-xs font-medium text-content-muted">Modul</span>
+          <select
+            [ngModel]="bogen().module"
+            (ngModelChange)="patch({ module: +$event })"
+            aria-label="Modul"
+            class="w-44 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+          >
+            @for (m of module; track m.value) {
+              <option [ngValue]="m.value">{{ m.label }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <label class="flex items-center gap-1.5 text-sm">
+        <input
+          type="checkbox"
+          [ngModel]="bogen().isDefault"
+          (ngModelChange)="patch({ isDefault: $event })"
+        />
+        Standardordner des Moduls — hochgeladene Dokumente des Moduls gehen hierher
+      </label>
+
+      <label class="flex items-center gap-1.5 text-sm">
+        <input
+          type="checkbox"
+          [ngModel]="bogen().isRestricted"
+          (ngModelChange)="patch({ isRestricted: $event })"
+        />
+        Gefundene Dateien nur für bestimmte Gruppen sichtbar
+      </label>
+      @if (bogen().isRestricted) {
+        <div class="flex flex-wrap gap-2 pl-6" role="group" aria-label="Gruppen">
+          @for (g of gruppen(); track g.id) {
+            <label class="flex items-center gap-1 text-sm">
+              <input
+                type="checkbox"
+                [checked]="bogen().groupIds.includes(g.id)"
+                (change)="umschalten(g.id)"
+              />
+              {{ g.name }}
+            </label>
+          } @empty {
+            <span class="text-xs text-content-muted"
+              >Es gibt noch keine Gruppen — anlegen unter Zugänge.</span
+            >
+          }
+        </div>
+      }
+
+      @if (bearbeitet() !== 'neu') {
+        <button
+          dialogActions
+          type="button"
+          (click)="entfernen()"
+          class="mr-auto cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+          title="Die Dateien bleiben auf der Synology; souffleur vergisst Schlagworte und Verknüpfungen"
+        >
+          Austragen
+        </button>
+      }
+      <button
+        dialogActions
+        type="button"
+        (click)="schliessen()"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+      >
+        Abbrechen
+      </button>
+      <button
+        dialogActions
+        type="button"
+        (click)="speichern()"
+        [disabled]="busy() || !bogen().path"
+        class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
+      >
+        {{ busy() ? 'Wird eingelesen …' : 'Speichern und einlesen' }}
+      </button>
+    </souffleur-dialog>
+  }
+</div>

@@ -1,0 +1,315 @@
+@switch (mail.ansicht().art) {
+  @case ('lesen') {
+    @if (mail.offen(); as offen) {
+      <div class="flex items-center gap-2 border-b border-border px-3.5 py-2">
+        <button
+          type="button"
+          (click)="zurueck()"
+          aria-label="Zurück zur Post"
+          class="grid size-6 shrink-0 place-items-center rounded-md border-0 bg-transparent p-0 text-content hover:text-brand"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            aria-hidden="true"
+          >
+            <path d="m15 6-6 6 6 6" />
+          </svg>
+        </button>
+        <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ offen.subject }}</span>
+      </div>
+
+      <div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-3.5 py-3">
+        <dl class="m-0 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px] text-content-muted">
+          <dt>Von</dt>
+          <dd class="m-0 truncate text-content">{{ offen.fromName ?? offen.fromAddress }}</dd>
+          <dt>An</dt>
+          <dd class="m-0 truncate text-content">
+            @for (r of offen.recipients; track r.address; let last = $last) {
+              {{ r.name ?? r.address }}{{ last ? '' : ', ' }}
+            }
+          </dd>
+          <dt>Am</dt>
+          <dd class="m-0 text-content">{{ offen.sentAt | date: 'dd.MM.yyyy HH:mm' }}</dd>
+          @if (offen.senderName) {
+            <dt>Durch</dt>
+            <dd class="m-0 truncate text-content">{{ offen.senderName }}</dd>
+          }
+        </dl>
+        <p class="mb-0 mt-3 whitespace-pre-wrap text-sm leading-relaxed">{{ offen.body }}</p>
+      </div>
+
+      @if (offen.direction === 'incoming' && mail.status()?.canSend) {
+        <div class="border-t border-border p-2.5">
+          <button
+            type="button"
+            (click)="antworten(offen)"
+            class="w-full rounded-md border border-border bg-transparent px-3 py-1.5 text-xs font-semibold text-content hover:bg-surface-sunken"
+          >
+            Antworten
+          </button>
+        </div>
+      }
+    }
+  }
+
+  @case ('schreiben') {
+    <div class="flex items-center gap-2 border-b border-border px-3.5 py-2">
+      <button
+        type="button"
+        (click)="zurueck()"
+        aria-label="Zurück zur Post"
+        class="grid size-6 shrink-0 place-items-center rounded-md border-0 bg-transparent p-0 text-content hover:text-brand"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          aria-hidden="true"
+        >
+          <path d="m15 6-6 6 6 6" />
+        </svg>
+      </button>
+      <span class="text-sm font-semibold">E-Mail schreiben</span>
+    </div>
+
+    <form class="flex min-h-0 flex-1 flex-col gap-2 p-2.5" (ngSubmit)="senden()">
+      <!-- Empfänger: gewählte als Marken, dahinter das Suchfeld über die Kontakte. -->
+      <div class="relative">
+        <label
+          for="mail-an"
+          class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-content-muted"
+          >An</label
+        >
+        <div
+          class="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1.5"
+        >
+          @for (e of mail.entwurf().an; track e.contactId ?? e.address) {
+            <span
+              class="flex items-center gap-1 rounded-md bg-brand-wash px-1.5 py-0.5 text-xs text-brand"
+            >
+              {{ e.label }}
+              <button
+                type="button"
+                (click)="entfernen(e)"
+                [attr.aria-label]="e.label + ' entfernen'"
+                class="grid size-4 place-items-center rounded border-0 bg-transparent p-0 text-brand hover:bg-brand hover:text-brand-contrast"
+              >
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="3"
+                  aria-hidden="true"
+                >
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            </span>
+          }
+          <input
+            #anFeld
+            id="mail-an"
+            name="an"
+            autocomplete="off"
+            [placeholder]="mail.entwurf().an.length ? '' : 'Kontakt oder Adresse'"
+            [ngModel]="suche()"
+            (ngModelChange)="suche.set($event)"
+            (keydown.enter)="eingabe($event)"
+            (keydown.backspace)="rueckschritt()"
+            class="min-w-24 flex-1 border-0 bg-transparent p-0.5 text-sm text-content outline-none placeholder:text-content-faint"
+          />
+        </div>
+        @if (vorschlaege().length) {
+          <ul
+            role="listbox"
+            aria-label="Passende Kontakte"
+            class="absolute left-0 right-0 z-10 mt-1 max-h-56 overflow-y-auto rounded-lg border border-border bg-surface-raised p-1 shadow-lg"
+          >
+            @for (k of vorschlaege(); track k.id) {
+              <li role="option" [attr.aria-selected]="false">
+                <button
+                  type="button"
+                  (click)="waehlen(k)"
+                  class="flex w-full flex-col items-start rounded-md border-0 bg-transparent px-2 py-1.5 text-left hover:bg-surface-sunken"
+                >
+                  <span class="text-sm text-content">{{ k.name }}</span>
+                  <span class="text-[11px] text-content-muted">{{ k.email }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div>
+        <label
+          for="mail-betreff"
+          class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-content-muted"
+          >Betreff</label
+        >
+        <input
+          id="mail-betreff"
+          name="betreff"
+          [ngModel]="mail.entwurf().betreff"
+          (ngModelChange)="betreff($event)"
+          class="w-full rounded-lg border border-border bg-surface px-2.5 py-1.5 text-sm text-content placeholder:text-content-faint"
+        />
+      </div>
+
+      <div class="flex min-h-0 flex-1 flex-col">
+        <label
+          for="mail-text"
+          class="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-content-muted"
+          >Text</label
+        >
+        <textarea
+          id="mail-text"
+          name="text"
+          rows="8"
+          [ngModel]="mail.entwurf().text"
+          (ngModelChange)="text($event)"
+          class="min-h-32 w-full flex-1 resize-none rounded-lg border border-border bg-surface px-2.5 py-2 text-sm leading-relaxed text-content placeholder:text-content-faint"
+        ></textarea>
+      </div>
+
+      @if (problems().length) {
+        <ul
+          role="alert"
+          class="m-0 list-none rounded-lg bg-critical-wash px-2.5 py-2 text-xs text-critical"
+        >
+          @for (p of problems(); track p) {
+            <li>{{ p }}</li>
+          }
+        </ul>
+      }
+
+      @if (mail.status(); as status) {
+        @if (!status.canSend) {
+          <p class="m-0 text-[11px] text-content-muted">
+            In diesem Haus ist noch kein Mailserver eingetragen -- senden geht noch nicht.
+          </p>
+        } @else if (status.sendMode === 'Log') {
+          <p class="m-0 text-[11px] text-content-faint">
+            Entwicklung: Die Mail landet im Protokoll, nicht beim Empfänger.
+          </p>
+        }
+      }
+
+      <div class="flex items-center justify-between">
+        <span class="text-[11px] text-content-faint">{{ mail.status()?.from ?? '' }}</span>
+        <button
+          type="submit"
+          [disabled]="sending() || !sendbar() || !mail.status()?.canSend"
+          class="rounded-md border-0 bg-brand px-3 py-1.5 text-xs font-semibold text-brand-contrast disabled:opacity-50"
+        >
+          Senden
+        </button>
+      </div>
+    </form>
+  }
+
+  @default {
+    <div class="flex items-center justify-between gap-2 border-b border-border px-3.5 py-2">
+      <span class="flex items-center gap-1.5 text-sm font-semibold">
+        <souffleur-icon name="mail" [size]="14" class="text-content-muted" />
+        E-Mail
+        @if (mail.unread() > 0) {
+          <span
+            class="grid min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-white"
+          >
+            {{ mail.unread() }}
+          </span>
+        }
+      </span>
+      <button
+        type="button"
+        (click)="schreiben()"
+        aria-label="E-Mail schreiben"
+        class="grid size-6 shrink-0 place-items-center rounded-md border border-border bg-transparent text-content-muted hover:text-content"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.2"
+          aria-hidden="true"
+        >
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
+    </div>
+
+    <ul class="m-0 min-h-0 flex-1 list-none overflow-y-auto p-2" aria-label="Post">
+      @for (m of mail.mails(); track m.id) {
+        <li>
+          <button
+            type="button"
+            (click)="mail.lesen(m)"
+            class="flex w-full items-start gap-2 rounded-lg border-0 bg-transparent px-2.5 py-2 text-left hover:bg-surface-sunken"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              aria-hidden="true"
+              class="mt-1 shrink-0"
+              [class]="m.isUnread ? 'text-accent' : 'text-content-faint'"
+            >
+              @if (m.direction === 'incoming') {
+                <path d="M19 5 5 19M5 10v9h9" />
+              } @else {
+                <path d="M5 19 19 5M19 14V5h-9" />
+              }
+            </svg>
+            <span class="min-w-0 flex-1">
+              <span class="flex items-baseline justify-between gap-2">
+                <span
+                  class="truncate text-sm"
+                  [class]="m.isUnread ? 'font-semibold text-content' : 'text-content'"
+                >
+                  {{ mail.gegenueber(m) }}
+                </span>
+                <span class="shrink-0 text-[11px] text-content-faint">{{
+                  m.sentAt | date: 'dd.MM. HH:mm'
+                }}</span>
+              </span>
+              <span
+                class="block truncate text-[12px]"
+                [class]="m.isUnread ? 'font-medium text-content' : 'text-content-muted'"
+              >
+                {{ m.subject }}
+              </span>
+            </span>
+            @if (m.isUnread) {
+              <span class="sr-only">ungelesen</span>
+            }
+          </button>
+        </li>
+      } @empty {
+        <li class="px-2.5 py-6 text-center text-sm text-content-muted">
+          @if (mail.status()?.canReceive) {
+            Noch keine E-Mail.
+          } @else {
+            Noch keine E-Mail. Ein Postfach ist nicht eingetragen -- empfangene Mails kommen erst
+            dann hierher.
+          }
+        </li>
+      }
+    </ul>
+  }
+}

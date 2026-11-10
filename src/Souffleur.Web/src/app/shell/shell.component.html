@@ -1,0 +1,164 @@
+<!-- Feste Fensterhöhe, nicht Mindesthöhe: Sonst wächst der Rahmen mit dem
+     Inhalt, der Bereich in der Mitte bekommt keine Höhe zum Scrollen, und
+     was unten angeheftet sein soll -- etwa die Zeitleiste der Aufgaben --
+     landet außerhalb des Bildes. -->
+<div class="flex h-dvh flex-col bg-surface text-content">
+  <button
+    type="button"
+    (click)="zumInhalt()"
+    class="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-surface-raised focus:px-3 focus:py-2 focus:text-sm focus:text-content focus:shadow-lg"
+  >
+    Zum Inhalt springen
+  </button>
+
+  <!-- Zwei Zeilen: oben Wortmarke, Suche und die Knöpfe fürs Konto, darunter
+       die Reiter der Module. In einer Zeile reichte die Breite seit dem
+       neunten Modul nicht mehr, und das Suchfeld musste sich klein machen. -->
+  <header class="flex shrink-0 flex-col bg-brand text-brand-contrast">
+    <div class="flex items-center gap-3 pr-3">
+      <div class="flex w-14 shrink-0 items-center justify-center md:w-53 md:justify-start md:px-5">
+        <souffleur-vorfuehrdaten />
+      </div>
+
+      <!-- Die Suche in der Mitte, so breit wie ein Satz. -->
+      <div class="flex min-w-0 flex-1 justify-center py-2">
+        <souffleur-suche class="w-full max-w-xl" />
+      </div>
+
+      <div class="flex shrink-0 items-center gap-2">
+        <souffleur-glocke />
+        <button
+          type="button"
+          (click)="theme.cycle()"
+          [attr.aria-label]="themeLabels[theme.choice()]"
+          [title]="themeLabels[theme.choice()]"
+          class="grid size-8 place-items-center rounded-md border-0 bg-white/15 text-brand-contrast hover:bg-white/25"
+        >
+          @switch (theme.choice()) {
+            @case ('light') {
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="4" />
+                <path
+                  d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+                />
+              </svg>
+            }
+            @case ('dark') {
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8" />
+              </svg>
+            }
+            @default {
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"
+              >
+                <rect x="2" y="4" width="20" height="13" rx="2" />
+                <path d="M8 21h8M12 17v4" />
+              </svg>
+            }
+          }
+        </button>
+
+        <a
+          routerLink="/einstellungen/listen"
+          routerLinkActive="bg-white/25"
+          aria-label="Einstellungen"
+          title="Einstellungen"
+          class="grid size-8 place-items-center rounded-md bg-white/15 text-brand-contrast no-underline hover:bg-white/25"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="3" />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+            />
+          </svg>
+        </a>
+
+        <!--
+        Name und Wort „Abmelden" erst auf breiten Bildschirmen: Mit acht
+        Reitern reicht der Platz bei 1280 Pixeln sonst nicht, und der letzte
+        Reiter verschwindet hinter dem eigenen Namen. Darunter steht ein
+        Zeichen; wer angemeldet ist, steht im Hinweis daran.
+      -->
+        <span class="hidden max-w-40 truncate text-sm xl:inline">{{ user()?.displayName }}</span>
+
+        <button
+          type="button"
+          (click)="signOut()"
+          aria-label="Abmelden"
+          [title]="'Abmelden (' + (user()?.displayName ?? '') + ')'"
+          class="flex items-center rounded-md border-0 bg-transparent px-2 py-1 text-sm text-brand-contrast/80 underline-offset-2 hover:text-brand-contrast hover:underline"
+        >
+          <souffleur-icon name="abmelden" [size]="16" class="xl:hidden" />
+          <span class="hidden xl:inline">Abmelden</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Die Reiter mittig, über Auto-Ränder am ersten und letzten statt
+         justify-center: So bleiben sie erreichbar, wenn sie auf einem
+         schmalen Bildschirm doch einmal überlaufen und die Leiste scrollt.
+         Ziehen sortiert sie; mit der Tastatur Strg/Cmd und Pfeil. -->
+    <nav
+      aria-label="Module"
+      souffleurSortierbar
+      (neueReihenfolge)="reiterSortiert($event)"
+      [title]="'Ziehen oder Strg/Cmd und Pfeiltaste ändert die Reihenfolge'"
+      aria-keyshortcuts="Control+ArrowLeft Control+ArrowRight Control+ArrowUp Control+ArrowDown"
+      class="flex min-w-0 items-end gap-0.5 overflow-x-auto px-2 md:px-3 [&>:first-child]:ml-auto [&>:last-child]:mr-auto"
+    >
+      @for (tab of reiter(); track tab.key) {
+        <a
+          [routerLink]="['/', tab.path]"
+          [attr.data-sortier-id]="tab.key"
+          draggable="false"
+          routerLinkActive="!bg-surface !text-brand rounded-t-md font-semibold"
+          class="flex shrink-0 items-center gap-1.5 px-3 py-2 text-sm font-medium text-brand-contrast/80 no-underline hover:text-brand-contrast"
+        >
+          <souffleur-icon [name]="tab.icon" [size]="15" />
+          {{ tab.label }}
+        </a>
+      }
+    </nav>
+  </header>
+
+  <div class="flex min-h-0 flex-1">
+    <souffleur-actions-sidebar />
+
+    <main id="inhalt" tabindex="-1" class="min-w-0 flex-1 overflow-auto">
+      <router-outlet />
+    </main>
+
+    <souffleur-chat-sidebar />
+  </div>
+</div>

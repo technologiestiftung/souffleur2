@@ -1,0 +1,180 @@
+<!--
+  Erst der Streifen, dann die volle Leiste: Angepinnt steht sie an seiner
+  Stelle, gelöst legt sie sich über ihn und den Inhalt.
+-->
+@if (streifen()) {
+  <!--
+    Zugeklappt dieselben Aktionen in derselben Reihenfolge wie aufgeklappt:
+    Es ist dieselbe Leiste, nur schmaler. Zwei Reihenfolgen fuer dieselben
+    Knoepfe waeren eine Falle.
+  -->
+  <aside
+    aria-label="Aktionen, zugeklappt"
+    souffleurSortierbar
+    (neueReihenfolge)="aktionenSortiert($event)"
+    aria-keyshortcuts="Control+ArrowLeft Control+ArrowRight Control+ArrowUp Control+ArrowDown"
+    class="flex w-13 shrink-0 flex-col items-center gap-2 border-r border-border bg-surface-raised pt-3"
+  >
+    <button
+      type="button"
+      (click)="layout.toggleActions()"
+      aria-label="Aktionsleiste aufklappen"
+      [attr.aria-expanded]="open()"
+      class="grid size-8 place-items-center rounded-lg border border-border bg-surface-raised text-content hover:bg-surface-sunken"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+        <path d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
+
+    @for (action of aktionen(); track action.label) {
+      <button
+        type="button"
+        (click)="ausfuehren(action.run)"
+        [attr.data-sortier-id]="action.label"
+        [attr.aria-label]="action.label"
+        [title]="action.label"
+        [class]="
+          action.primary
+            ? 'grid size-8 place-items-center rounded-lg border-0 bg-brand text-brand-contrast hover:bg-brand-hover'
+            : 'grid size-8 place-items-center rounded-lg border border-border bg-surface-raised text-content hover:bg-surface-sunken'
+        "
+      >
+        <souffleur-icon [name]="action.icon" [size]="15" />
+      </button>
+    }
+  </aside>
+}
+
+@if (open()) {
+  <aside
+    aria-label="Aktionen"
+    [class]="
+      layout.actionsPinned()
+        ? 'flex w-53 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-raised'
+        : 'absolute left-0 top-0 z-40 flex h-full w-53 flex-col overflow-y-auto border-r border-border bg-surface-raised shadow-xl transition-transform duration-150 ease-out starting:-translate-x-full'
+    "
+  >
+    <div class="flex items-center justify-between px-3.5 py-3">
+      <span class="text-[11px] font-semibold uppercase tracking-wider text-content-muted">
+        {{ registry.title() }}
+      </span>
+      <div class="flex gap-1">
+        <button
+          type="button"
+          (click)="layout.togglePin()"
+          [attr.aria-label]="layout.actionsPinned() ? 'Aktionsleiste lösen' : 'Aktionsleiste anpinnen'"
+          [attr.aria-pressed]="layout.actionsPinned()"
+          [class]="
+            layout.actionsPinned()
+              ? 'grid size-6 place-items-center rounded-md border-0 bg-brand-wash text-brand'
+              : 'grid size-6 place-items-center rounded-md border-0 bg-transparent text-content-faint hover:text-content'
+          "
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="M12 17v5M9 2h6l-1 7 3 3v2H7v-2l3-3z" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          (click)="layout.toggleActions()"
+          aria-label="Aktionsleiste zuklappen"
+          class="grid size-6 place-items-center rounded-md border-0 bg-transparent text-content-faint hover:text-content"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
+            <path d="m15 6-6 6 6 6" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    @if (aktionen().length) {
+      <div
+        souffleurSortierbar
+        (neueReihenfolge)="aktionenSortiert($event)"
+        [title]="'Ziehen oder Strg/Cmd und Pfeiltaste ändert die Reihenfolge'"
+        aria-keyshortcuts="Control+ArrowLeft Control+ArrowRight Control+ArrowUp Control+ArrowDown"
+        class="flex flex-col gap-1.5 px-2.5 pb-3"
+      >
+        @for (action of aktionen(); track action.label) {
+          <button
+            type="button"
+            (click)="ausfuehren(action.run)"
+            [attr.data-sortier-id]="action.label"
+            [class]="
+              action.primary
+                ? 'flex w-full items-center gap-2.5 rounded-lg border-0 bg-brand px-3 py-2.5 text-left text-sm font-semibold text-brand-contrast hover:bg-brand-hover'
+                : 'flex w-full items-center gap-2.5 rounded-lg border border-border bg-surface-raised px-3 py-2.5 text-left text-sm text-content hover:bg-surface-sunken'
+            "
+          >
+            <souffleur-icon [name]="action.icon" [size]="15" />
+            {{ action.label }}
+          </button>
+        }
+      </div>
+    }
+
+    @for (gruppe of registry.filters(); track gruppe.key) {
+      <!-- Filter der Seite: eine Frage, mehrere Antworten, eine davon gewählt. -->
+      <div class="border-t border-border px-3.5 pt-3 pb-1">
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-content-muted">{{ gruppe.heading }}</span>
+      </div>
+      <ul class="m-0 flex list-none flex-col gap-px px-2.5 pb-2" [attr.aria-label]="gruppe.heading">
+        @for (option of gruppe.options; track option.key) {
+          <li>
+            <button
+              type="button"
+              (click)="gruppe.choose(option.key)"
+              [attr.aria-pressed]="option.active"
+              [class]="
+                option.active
+                  ? 'flex w-full cursor-pointer items-center justify-between rounded-md border-0 bg-brand-wash px-3 py-1.5 text-left text-sm font-semibold text-brand'
+                  : 'flex w-full cursor-pointer items-center justify-between rounded-md border-0 bg-transparent px-3 py-1.5 text-left text-sm text-content hover:bg-surface-sunken'
+              "
+            >
+              <span class="min-w-0 truncate">{{ option.label }}</span>
+              @if (option.count !== undefined) {
+                <span class="ml-2 shrink-0 text-xs font-normal text-content-faint tabular">{{ option.count }}</span>
+              }
+            </button>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (bereiche().length) {
+      <div class="border-t border-border px-3.5 pt-3 pb-2">
+        <span class="text-[11px] font-semibold uppercase tracking-wider text-content-muted">Bereiche</span>
+      </div>
+      <nav
+        aria-label="Bereiche"
+        souffleurSortierbar
+        (neueReihenfolge)="bereicheSortiert($event)"
+        [title]="'Ziehen oder Strg/Cmd und Pfeiltaste ändert die Reihenfolge'"
+        aria-keyshortcuts="Control+ArrowLeft Control+ArrowRight Control+ArrowUp Control+ArrowDown"
+        class="flex flex-col gap-px px-2.5"
+      >
+        @for (area of bereiche(); track area.path) {
+          <a
+            [routerLink]="area.path"
+            (click)="layout.closeActionsOverlay()"
+            [attr.data-sortier-id]="area.path"
+            draggable="false"
+            routerLinkActive="bg-brand-wash text-brand font-semibold"
+            class="flex items-center justify-between rounded-md px-3 py-2 text-sm text-content no-underline hover:bg-surface-sunken"
+          >
+            <span class="flex min-w-0 items-center gap-2">
+              @if (area.icon) {
+                <souffleur-icon [name]="area.icon" [size]="14" class="text-content-faint" />
+              }
+              {{ area.label }}
+            </span>
+            @if (area.badge) {
+              <span class="text-xs text-content-faint">{{ area.badge }}</span>
+            }
+          </a>
+        }
+      </nav>
+    }
+  </aside>
+}

@@ -1,0 +1,243 @@
+<div class="h-full overflow-auto p-5">
+  <div class="mb-4 max-w-prose">
+    <h1 class="m-0 font-display text-lg font-semibold">Kalender abonnieren</h1>
+    <p class="m-0 mt-1 text-sm text-content-muted">
+      Eine Adresse, die sich in Apple Kalender, Outlook, Google oder Thunderbird eintragen lässt.
+      Ändert sich in souffleur ein Termin, ändert er sich dort beim nächsten Abgleich — anders als
+      bei einer heruntergeladenen Datei, die ab dem ersten Verschieben veraltet ist.
+    </p>
+    <p class="m-0 mt-2 rounded-md bg-accent-wash px-3 py-2 text-sm text-content">
+      <strong class="text-accent">Abonnieren, nicht öffnen.</strong> Die Adresse gehört in
+      <em>Ablage › Neues Kalenderabonnement</em> (Apple Kalender) beziehungsweise
+      <em>Kalender hinzufügen › Per URL</em> (Outlook, Google). Dann entsteht ein eigener Kalender,
+      den man als Ganzes wieder entfernen kann. Wer die Datei stattdessen <em>öffnet</em>,
+      importiert die Termine mitten in einen vorhandenen Kalender — dort sind sie nur noch einzeln
+      von Hand loszuwerden.
+    </p>
+    <p class="m-0 mt-2 rounded-md bg-accent-wash px-3 py-2 text-sm text-content">
+      <strong class="text-accent">Die Adresse ist der Schlüssel.</strong> Eine Kalenderanwendung
+      kann sich nicht anmelden — wer die Adresse hat, sieht die Termine. Weitergeben heißt also
+      Zugang geben. Zurückholen lässt sich das nur mit <em>Neue Adresse</em>: Danach müssen alle,
+      die abonniert haben, die neue eintragen.
+    </p>
+  </div>
+
+  @if (!secure) {
+    <div
+      class="mb-3 max-w-prose rounded-md border border-border px-3 py-2 text-sm text-content-muted"
+    >
+      Diese Seite läuft unverschlüsselt. Kalenderanwendungen lösen den
+      <code>webcal:</code>-Verweis zu <code>https:</code> auf und erreichen die Adresse dann nicht —
+      der Knopf zum Eintragen fehlt deshalb hier. Die Adresse kopieren und
+      <strong>in der Kalenderanwendung einfügen</strong>, nicht im Browser öffnen: Der Browser lädt
+      die Datei herunter, und ein Doppelklick darauf importiert die Termine in einen vorhandenen
+      Kalender, statt ein Abonnement anzulegen. Im Betrieb hinter HTTPS stellt sich die Frage nicht.
+    </div>
+  }
+
+  @if (problems().length > 0) {
+    <souffleur-meldung class="mb-3 max-w-4xl" [texte]="problems()" />
+  }
+
+  <ul class="m-0 max-w-4xl list-none space-y-2 p-0">
+    @for (entry of entries(); track entry.id) {
+      <li class="rounded-md border border-border p-3" [class.opacity-50]="!entry.isActive">
+        <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span class="font-medium">{{ entry.name }}</span>
+          <span class="text-xs text-content-muted">{{ scope(entry) }}</span>
+          <span class="text-xs text-content-faint">{{ fetched(entry) }}</span>
+
+          <span class="ml-auto flex gap-1">
+            <button
+              type="button"
+              (click)="copy(entry)"
+              class="cursor-pointer rounded-md border border-border bg-transparent px-2 py-1 text-xs text-content"
+            >
+              {{ copied() === entry.id ? 'Kopiert' : 'Adresse kopieren' }}
+            </button>
+            @if (secure) {
+              <a
+                [href]="webcal(entry.address)"
+                class="cursor-pointer rounded-md border-0 bg-brand px-2 py-1 text-xs font-medium text-brand-contrast no-underline"
+              >
+                Eintragen
+              </a>
+            }
+            <button
+              type="button"
+              (click)="reveal(entry)"
+              class="cursor-pointer border-0 bg-transparent px-1 text-xs text-content-muted hover:text-brand"
+            >
+              {{ shown() === entry.id ? 'Verbergen' : 'Zeigen' }}
+            </button>
+            <button
+              type="button"
+              (click)="setActive(entry, !entry.isActive)"
+              class="cursor-pointer border-0 bg-transparent px-1 text-xs text-content-muted hover:text-brand"
+            >
+              {{ entry.isActive ? 'Abschalten' : 'Einschalten' }}
+            </button>
+            <button
+              type="button"
+              (click)="rotate(entry)"
+              title="Die alte Adresse antwortet danach nicht mehr."
+              class="cursor-pointer border-0 bg-transparent px-1 text-xs text-content-muted hover:text-accent"
+            >
+              Neue Adresse
+            </button>
+            <button
+              type="button"
+              (click)="remove(entry)"
+              class="cursor-pointer border-0 bg-transparent px-1 text-xs text-content-muted hover:text-critical"
+            >
+              Löschen
+            </button>
+          </span>
+        </div>
+
+        @if (shown() === entry.id) {
+          <input
+            type="text"
+            readonly
+            [value]="entry.address"
+            [attr.aria-label]="'Adresse von ' + entry.name"
+            class="mt-2 w-full rounded-md border border-border bg-surface-sunken px-2 py-1.5 font-mono text-xs text-content"
+          />
+        }
+      </li>
+    }
+  </ul>
+
+  @if (entries().length === 0 && !creating()) {
+    <p class="max-w-prose text-sm text-content-muted">
+      Noch kein Abonnement. Ein eigenes je Zweck ist besser als eines für alles: Der Spielplan fürs
+      Ensemble, die eigenen Dienste fürs Telefon, der Große Saal für die Technik.
+    </p>
+  }
+
+  <button
+    type="button"
+    (click)="startNew()"
+    class="mt-3 cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast"
+  >
+    Abonnement anlegen
+  </button>
+
+  @if (creating()) {
+    <souffleur-dialog heading="Abonnement anlegen" size="breit" (closed)="cancel()">
+      <label class="block">
+        <span class="mb-1 block text-xs font-medium text-content-muted">Name</span>
+        <input
+          type="text"
+          [ngModel]="name()"
+          (ngModelChange)="name.set($event)"
+          placeholder="Spielplan"
+          class="w-64 rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-content"
+        />
+      </label>
+
+      <div class="mt-3">
+        <span class="mb-1 block text-xs font-medium text-content-muted">
+          Kategorien — nichts gewählt heißt: alle
+        </span>
+        <div class="flex flex-wrap gap-1">
+          @for (category of categories(); track category.id) {
+            <button
+              type="button"
+              (click)="toggleCategory(category.id)"
+              [attr.aria-pressed]="isCategory(category.id)"
+              class="cursor-pointer rounded-full border px-2.5 py-1 text-xs"
+              [class.bg-brand]="isCategory(category.id)"
+              [class.text-brand-contrast]="isCategory(category.id)"
+              [class.border-brand]="isCategory(category.id)"
+              [class.border-border]="!isCategory(category.id)"
+              [class.text-content]="!isCategory(category.id)"
+            >
+              {{ category.label }}
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (rooms().length > 0) {
+        <div class="mt-3">
+          <span class="mb-1 block text-xs font-medium text-content-muted">
+            Ressourcen — nichts gewählt heißt: unabhängig davon
+          </span>
+          <div class="flex flex-wrap gap-1">
+            @for (room of rooms(); track room.id) {
+              <button
+                type="button"
+                (click)="toggleResource(room.id)"
+                [attr.aria-pressed]="isResource(room.id)"
+                class="cursor-pointer rounded-full border px-2.5 py-1 text-xs"
+                [class.bg-brand]="isResource(room.id)"
+                [class.text-brand-contrast]="isResource(room.id)"
+                [class.border-brand]="isResource(room.id)"
+                [class.border-border]="!isResource(room.id)"
+                [class.text-content]="!isResource(room.id)"
+              >
+                {{ room.name }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      @if (people().length > 0) {
+        <div class="mt-3">
+          <span class="mb-1 block text-xs font-medium text-content-muted">
+            Personen — nichts gewählt heißt: alle Termine, nicht nur die eigenen
+          </span>
+          <div class="flex flex-wrap gap-1">
+            @for (person of people(); track person.id) {
+              <button
+                type="button"
+                (click)="togglePerson(person.id)"
+                [attr.aria-pressed]="isPerson(person.id)"
+                class="cursor-pointer rounded-full border px-2.5 py-1 text-xs"
+                [class.bg-brand]="isPerson(person.id)"
+                [class.text-brand-contrast]="isPerson(person.id)"
+                [class.border-brand]="isPerson(person.id)"
+                [class.border-border]="!isPerson(person.id)"
+                [class.text-content]="!isPerson(person.id)"
+              >
+                {{ person.name }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      <label class="mt-3 flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          [ngModel]="includeCancelled()"
+          (ngModelChange)="includeCancelled.set($event)"
+        />
+        <span>
+          Abgesagte Termine mitnehmen
+          <span class="text-content-muted">— als abgesagt gekennzeichnet, nicht als Lücke</span>
+        </span>
+      </label>
+
+      <button
+        dialogActions
+        type="button"
+        (click)="cancel()"
+        class="cursor-pointer rounded-md border border-border bg-transparent px-3 py-1.5 text-sm text-content"
+      >
+        Abbrechen
+      </button>
+      <button
+        dialogActions
+        type="button"
+        (click)="save()"
+        [disabled]="busy()"
+        class="cursor-pointer rounded-md border-0 bg-brand px-3 py-1.5 text-sm font-medium text-brand-contrast disabled:opacity-60"
+      >
+        {{ busy() ? 'Wird angelegt …' : 'Anlegen' }}
+      </button>
+    </souffleur-dialog>
+  }
+</div>

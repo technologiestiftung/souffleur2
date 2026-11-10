@@ -1,0 +1,86 @@
+<button
+  type="button"
+  (click)="umschalten()"
+  [attr.aria-expanded]="offen()"
+  aria-haspopup="true"
+  [attr.aria-label]="
+    notifications.unread() > 0
+      ? 'Benachrichtigungen, ' + notifications.unread() + ' ungelesen'
+      : 'Benachrichtigungen'
+  "
+  class="relative grid size-8 cursor-pointer place-items-center rounded-md border-0 bg-white/15 text-brand-contrast hover:bg-white/25"
+>
+  <souffleur-icon name="glocke" [size]="16" />
+  @if (notifications.unread() > 0) {
+    <span
+      aria-hidden="true"
+      class="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-accent px-1 text-[10px] font-bold leading-none text-white tabular"
+    >
+      {{ notifications.unread() > 99 ? '99+' : notifications.unread() }}
+    </span>
+  }
+</button>
+
+@if (offen()) {
+  <div
+    role="region"
+    aria-label="Benachrichtigungen"
+    class="absolute right-0 top-full z-50 mt-2 w-96 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border bg-surface-raised text-content shadow-xl"
+  >
+    <div class="flex items-center justify-between border-b border-border px-3 py-2">
+      <span class="text-sm font-semibold">Benachrichtigungen</span>
+      <div class="flex items-center gap-3 text-xs">
+        @if (notifications.hasUnread()) {
+          <button
+            type="button"
+            (click)="notifications.markAllRead()"
+            class="cursor-pointer border-0 bg-transparent p-0 text-brand hover:underline"
+          >
+            alle gelesen
+          </button>
+        }
+        <a
+          routerLink="/einstellungen/benachrichtigungen"
+          (click)="offen.set(false)"
+          class="text-content-muted no-underline hover:text-content"
+        >
+          Einstellungen
+        </a>
+      </div>
+    </div>
+
+    <ul class="m-0 max-h-96 list-none overflow-y-auto p-0">
+      @for (item of notifications.items(); track item.id) {
+        <li class="border-b border-border last:border-b-0">
+          <button
+            type="button"
+            (click)="oeffnen(item)"
+            class="flex w-full cursor-pointer items-start gap-2 border-0 bg-transparent px-3 py-2.5 text-left hover:bg-surface-sunken"
+            [class.bg-brand-wash]="!item.isRead"
+          >
+            <span
+              class="mt-1.5 size-2 shrink-0 rounded-full"
+              [class.bg-brand]="!item.isRead"
+              [class.bg-transparent]="item.isRead"
+              aria-hidden="true"
+            ></span>
+            <span class="min-w-0">
+              <span class="block text-sm" [class.font-semibold]="!item.isRead">{{ item.title }}</span>
+              @if (item.body) {
+                <span class="block truncate text-xs text-content-muted">{{ item.body }}</span>
+              }
+              <span class="block text-[11px] text-content-faint">
+                {{ item.createdAt | date: 'd.M. HH:mm' }}
+                @if (!item.isRead) {
+                  <span class="sr-only">, ungelesen</span>
+                }
+              </span>
+            </span>
+          </button>
+        </li>
+      } @empty {
+        <li class="px-3 py-6 text-center text-sm text-content-muted">Nichts Neues.</li>
+      }
+    </ul>
+  </div>
+}
