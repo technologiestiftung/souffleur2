@@ -45,7 +45,7 @@ wer selbst handelt, bekommt keinen Hinweis.
 
 ## Stand
 
-500 .NET-Tests, 104 Browsertests grün (09.11.2026). Auf 1280×720 fuellten die Kennzahlen die Personal-Seite, die Dienste-Liste
+511 .NET-Tests, 112 Browsertests grün (10.11.2026). Auf 1280×720 fuellten die Kennzahlen die Personal-Seite, die Dienste-Liste
 (`flex-1 overflow-auto` unter `h-full`) bekam keine Hoehe und war nicht
 erreichbar. Je nachdem, ob die Kacheln vor dem Klick geladen waren, wackelte
 der Test. Behoben mit `min-h-96` am Scrollbereich, ebenso Kontakte,
@@ -53,6 +53,31 @@ Buchungen und Ticketing (10.11.2026). Neue Seiten mit Kennzahlen und Liste
 darunter brauchen dieselbe Mindesthöhe.
 
 Seit Anfang November dazugekommen:
+
+- **Termine bearbeiten** (10.11.2026): Im Tagesfenster hat jeder Termin aus
+  dem Kalender „Bearbeiten“; derselbe `souffleur-event-dialog` mit Eingabe
+  `edit` (eine `Occurrence`). Einzeltermin: `PUT /api/calendar/events/{id}`.
+  Aus einer Serie fragt der Bogen „Nur dieser Termin“ (Abweichung über
+  `PUT …/series/{id}/occurrences/{start}`, die Räume und Leute der Serie gehen
+  mit) oder „Ganze Serie“ (`PUT …/series/{id}`, einzeln geänderte bleiben).
+  Absagen über den Status, Löschen für Einzeltermin und ganze Serie mit
+  Rückfrage im Knopf. Dokumente (`shared/dokumente-am-ziel.component.ts`) und
+  Lesezeichen am Termin, sobald er eine Id hat. `GET` für Termin und Serie
+  lädt jetzt die Einteilung mit — vorher fehlte sie, und Speichern hätte alle
+  Eingeteilten entfernt.
+- **Kontenplan** (10.11.2026): Einstellungen → Kontenplan
+  (`features/settings/kontenplan.component`, `core/kontenplan.service.ts`).
+  Liste mit Filter, Anlegen/Ändern/Stilllegen (`PUT /api/accounting/accounts/{id}`,
+  Nummer unveränderlich, nur Ziffern), CSV vom Steuerbüro mit Vorschau
+  (`parseKontenCsv`: `Nummer;Name;Art;Steuerschlüssel`, Art wird gewählt, nie
+  geraten), Kostenstellen anlegen. Lesen mit `FinanceRead`, Ändern mit
+  `FinanceBook`.
+- **Konten einladen** (ADR-0014, 10.11.2026): Zugänge → Personen → „+ Konto“
+  legt ohne Passwort an und zeigt einen Einladungslink (per Mail, wenn ein
+  Mailserver eingetragen ist). `/einladung` setzt das Passwort, ohne Anmeldung
+  erreichbar (auch im `sitzungInterceptor` ausgenommen). „Neuer Link“,
+  „Sperren“/„Freigeben“ je Person. API `POST /api/access/users`,
+  `…/{id}/invitation`, `PUT …/{id}/active`, `GET`/`POST /api/account/invitation`.
 
 - **Ordner der Synology als Ablage** (ADR-0013): `DocumentFolder`
   (Name, Pfad unter der Wurzel, Modul, Standard je Modul, Sichtbarkeit über
@@ -319,18 +344,10 @@ Seit Anfang November dazugekommen:
 - **Ablage auf einer echten Synology nicht erprobt**: DSM-ACLs gegen den
   Container-Benutzer, Zeitstempel über SMB, Papierkorb `#recycle/souffleur/`.
 
-0. **Kontenplan in den Einstellungen**: Konten ansehen, anlegen, CSV vom
-   Steuerbüro einlesen (`/api/accounts`, `/api/accounts/import` sind da).
-1. **Konten anlegen und einladen fehlt in der Oberfläche** — Lücke vor dem
-   ersten Haus; auch die Voraussetzung, damit Kontakte aus dem Adressbuch
-   in den Chat kommen.
-2. **Chat, offen**: Kanal je Gruppe, dessen Mitglieder der Gruppe folgen
+1. **Chat, offen**: Kanal je Gruppe, dessen Mitglieder der Gruppe folgen
    (heute wird eine Gruppe beim Aufnehmen aufgelöst); Antworten im Faden
    (`InReplyToId` ist da, die Oberfläche nutzt es nicht); Nachricht
    nachträglich ändern (`Message.Edit` ohne Endpunkt).
-3. **Termine bearbeiten**: Der Termindialog kann nur anlegen. Ohne Bogen
-   zum Ändern gibt es am Termin keine Lesezeichen und keine Dokumente —
-   beides steht bereit (`BookmarkTarget.Event`, `DocumentTarget.Event`).
 
 Älter, ebenfalls offen:
 

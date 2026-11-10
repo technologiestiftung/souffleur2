@@ -12,7 +12,12 @@ import { catchError, throwError } from 'rxjs';
  *
  * Die Pfade unter /api/account bleiben außen vor: Eine falsche Anmeldung
  * antwortet ebenfalls mit 401, und „me“ fragt beim Start genau das ab.
+ * Ebenso die Seiten, die ohne Anmeldung da sein müssen -- wer eine Einladung
+ * annimmt, hat noch keine, und ohne diese Ausnahme schickte ihn die erste
+ * Abfrage beim Start auf die Anmeldung.
  */
+const OHNE_ANMELDUNG = ['/anmelden', '/einladung'];
+
 export const sitzungInterceptor: HttpInterceptorFn = (req, next) =>
   next(req).pipe(
     catchError((error: unknown) => {
@@ -20,7 +25,7 @@ export const sitzungInterceptor: HttpInterceptorFn = (req, next) =>
         error instanceof HttpErrorResponse &&
         error.status === 401 &&
         !req.url.startsWith('/api/account/') &&
-        !location.pathname.startsWith('/anmelden')
+        !OHNE_ANMELDUNG.some((pfad) => location.pathname.startsWith(pfad))
       ) {
         location.assign('/anmelden?abgelaufen=1');
       }
