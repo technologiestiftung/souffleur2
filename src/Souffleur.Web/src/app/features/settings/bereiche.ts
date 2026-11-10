@@ -22,6 +22,7 @@ export function einstellungsBereiche(darfZugaenge: boolean): Bereich[] {
   return [
     { label: 'Haus', icon: 'haus', path: '/einstellungen/haus' },
     { label: 'Module', icon: 'einstellungen', path: '/einstellungen/module' },
+    { label: 'Kontenplan', icon: 'buchung', path: '/einstellungen/kontenplan' },
     { label: 'Wertelisten', icon: 'liste', path: '/einstellungen/listen' },
     { label: 'Ressourcen', icon: 'ressource', path: '/einstellungen/ressourcen' },
     { label: 'Bedarf je Terminart', icon: 'bedarf', path: '/einstellungen/dienstbedarf' },

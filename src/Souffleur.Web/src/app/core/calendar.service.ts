@@ -124,6 +124,48 @@ export interface SeriesInput extends Omit<EventInput, 'startsAt' | 'endsAt'> {
   count?: number | null;
 }
 
+/** Ein einzelner Termin, so wie der Bogen zum Bearbeiten ihn braucht. */
+export interface EventDetail {
+  id: string;
+  seriesId: string | null;
+  occurrenceStart: string | null;
+  title: string;
+  description: string | null;
+  location: string | null;
+  categoryId: string | null;
+  status: number;
+  startsAt: string;
+  endsAt: string;
+  isAllDay: boolean;
+  resourceIds: string[];
+  participants: ParticipantInput[];
+  productionId: string | null;
+}
+
+/** Eine Serie mit ihrer Regel. */
+export interface SeriesDetail {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  categoryId: string | null;
+  status: number;
+  startDate: string;
+  startTime: string;
+  durationMinutes: number;
+  frequency: number;
+  interval: number;
+  byWeekday: number;
+  byMonthDay: number | null;
+  bySetPosition: number | null;
+  until: string | null;
+  count: number | null;
+  isAllDay: boolean;
+  resourceIds: string[];
+  participants: ParticipantInput[];
+  productionId: string | null;
+}
+
 export const EventStatus = { Planned: 1, Confirmed: 2, Cancelled: 3 } as const;
 
 /** Wie fest jemand eingeplant ist. */
@@ -198,6 +240,14 @@ export class CalendarService {
     return firstValueFrom(this.http.post('/api/calendar/events', input));
   }
 
+  getEvent(id: string): Promise<EventDetail> {
+    return firstValueFrom(this.http.get<EventDetail>(`/api/calendar/events/${id}`));
+  }
+
+  getSeries(id: string): Promise<SeriesDetail> {
+    return firstValueFrom(this.http.get<SeriesDetail>(`/api/calendar/series/${id}`));
+  }
+
   updateEvent(id: string, input: EventInput): Promise<unknown> {
     return firstValueFrom(this.http.put(`/api/calendar/events/${id}`, input));
   }
@@ -236,6 +286,28 @@ export class CalendarService {
 
   createSeries(input: SeriesInput): Promise<unknown> {
     return firstValueFrom(this.http.post('/api/calendar/series', input));
+  }
+
+  /** Die Regel ändern. Einzeln verschobene Termine bleiben, wie sie sind. */
+  updateSeries(id: string, input: SeriesInput): Promise<unknown> {
+    return firstValueFrom(this.http.put(`/api/calendar/series/${id}`, input));
+  }
+
+  deleteSeries(id: string): Promise<unknown> {
+    return firstValueFrom(this.http.delete(`/api/calendar/series/${id}`));
+  }
+
+  /**
+   * Nur diesen einen Termin einer Serie ändern. Legt die Abweichung an oder
+   * ändert die vorhandene; Räume und Einteilung der Serie gehen mit.
+   */
+  overrideOccurrence(seriesId: string, start: string, input: EventInput): Promise<unknown> {
+    return firstValueFrom(
+      this.http.put(
+        `/api/calendar/series/${seriesId}/occurrences/${encodeURIComponent(start)}`,
+        input,
+      ),
+    );
   }
 
   /**

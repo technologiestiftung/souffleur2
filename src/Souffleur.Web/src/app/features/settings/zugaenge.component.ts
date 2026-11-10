@@ -5,6 +5,8 @@ import {
   AccessRole,
   AccessService,
   AccessUser,
+  Invitation,
+  NewUser,
   PermissionInfo,
 } from '../../core/access.service';
 import { DialogComponent } from '../../shared/dialog.component';
@@ -60,6 +62,14 @@ export class ZugaengeComponent implements OnInit {
   protected readonly busy = signal(false);
   protected readonly entwurf = signal<Entwurf | null>(null);
 
+  /** Ein neues Konto im Fenster -- getrennt vom Entwurf, es hat ein eigenes Ende: den Link. */
+  protected readonly konto = signal<NewUser | null>(null);
+  protected readonly kontoProbleme = signal<string[]>([]);
+
+  /** Der Link, nachdem ein Konto angelegt oder neu eingeladen wurde. */
+  protected readonly einladung = signal<{ name: string; invitation: Invitation } | null>(null);
+  protected readonly kopiert = signal(false);
+
   /** Der Katalog nach Bereichen, in der Reihenfolge, in der er kommt. */
   protected readonly bereiche = computed(() => {
     const nach = new Map<string, PermissionInfo[]>();
@@ -93,7 +103,8 @@ export class ZugaengeComponent implements OnInit {
     this.actions.set(
       'Zugänge',
       [
-        { label: 'Gruppe anlegen', icon: 'gruppe', primary: true, run: () => this.neueGruppe() },
+        { label: 'Konto anlegen', icon: 'zugang', primary: true, run: () => this.neuesKonto() },
+        { label: 'Gruppe anlegen', icon: 'gruppe', run: () => this.neueGruppe() },
         { label: 'Rolle anlegen', icon: 'rolle', run: () => this.neueRolle() },
       ],
       [
@@ -147,6 +158,88 @@ export class ZugaengeComponent implements OnInit {
         .flatMap((r) => r.permissions),
     );
     return rechte.size;
+  }
+
+  /** Was unter dem Namen steht: eingeladen, gesperrt, zuletzt da. */
+  protected stand(person: AccessUser): string {
+    if (!person.isActive) {
+      return 'gesperrt';
+    }
+    if (!person.hasPassword) {
+      return 'eingeladen — Link noch nicht benutzt';
+    }
+    return person.lastLoginAt
+      ? `zuletzt angemeldet ${new Date(person.lastLoginAt).toLocaleDateString('de-DE')}`
+      : 'noch nie angemeldet';
+  }
+
+  // ── Konten ─────────────────────────────────────────────────────────────
+
+  protected neuesKonto(): void {
+    this.reiter.set('personen');
+    this.kontoProbleme.set([]);
+    this.konto.set({ givenName: '', surname: '', email: '', roleIds: [] });
+  }
+
+  protected kontoAendern(change: Partial<NewUser>): void {
+    this.konto.update((k) => (k ? { ...k, ...change } : k));
+  }
+
+  protected async kontoAnlegen(): Promise<void> {
+    const konto = this.konto();
+    if (!konto) {
+      return;
+    }
+    this.busy.set(true);
+    this.kontoProbleme.set([]);
+    try {
+      const invitation = await this.access.createUser(konto);
+      this.konto.set(null);
+      this.zeigeLink(`${konto.givenName} ${konto.surname}`.trim(), invitation);
+      await this.laden();
+    } catch (error) {
+      this.kontoProbleme.set(meldungen(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** Neuer Link -- für eine Einladung, die nicht ankam, oder ein vergessenes Passwort. */
+  protected async neuerLink(person: AccessUser): Promise<void> {
+    this.problems.set([]);
+    try {
+      this.zeigeLink(person.name, await this.access.inviteAgain(person.id));
+    } catch (error) {
+      this.problems.set(meldungen(error));
+    }
+  }
+
+  protected async sperren(person: AccessUser, gesperrt: boolean): Promise<void> {
+    this.problems.set([]);
+    try {
+      await this.access.setActive(person.id, !gesperrt);
+      await this.laden();
+    } catch (error) {
+      this.problems.set(meldungen(error));
+    }
+  }
+
+  protected async linkKopieren(link: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(link);
+      this.kopiert.set(true);
+    } catch {
+      // Ohne Zugriff auf die Zwischenablage steht der Link zum Markieren da.
+    }
+  }
+
+  protected gueltigBis(invitation: Invitation): string {
+    return new Date(invitation.validUntil).toLocaleDateString('de-DE');
+  }
+
+  private zeigeLink(name: string, invitation: Invitation): void {
+    this.kopiert.set(false);
+    this.einladung.set({ name, invitation });
   }
 
   // ── Bearbeiten ─────────────────────────────────────────────────────────
